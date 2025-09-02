@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<idea-plugin>
+    <id>com.wepie.coder.wpcoder</id>
+    <name>WP Template Manager</name>
+    <vendor>Wepie</vendor>
+    <description><![CDATA[
+        Template management plugin for Android Studio.<br>
+        Features:
+        <ul>
+            <li>Quick access to template settings</li>
+            <li>Import/Export templates without affecting other settings</li>
+        </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+    <depends>org.jetbrains.kotlin</depends>
+    <depends>org.jetbrains.android</depends>
+
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK2="true" />
+    </extensions>
+    
+    <resource-bundle>messages.WPCoderBundle</resource-bundle>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- 注册工具窗口 -->
+        <toolWindow
+            id="WPCoder"
+            anchor="right"
+            icon="AllIcons.FileTypes.Text"
+            factoryClass="com.wepie.coder.wpcoder.window.TemplateToolWindowFactory"
+            canCloseContents="false"
+            order="last"/>
+
+        <!-- 注册服务 -->
+        <applicationService
+            serviceInterface="com.wepie.coder.wpcoder.service.TemplateStorage"
+            serviceImplementation="com.wepie.coder.wpcoder.service.impl.TemplateStorageImpl"/>
+        <projectService
+            serviceInterface="com.wepie.coder.wpcoder.service.TemplateManager"
+            serviceImplementation="com.wepie.coder.wpcoder.service.impl.TemplateManagerImpl"/>
+    </extensions>
+
+    <actions>
+        <group id="WPCoder.TemplateActions" 
+               text="WP Template"
+               description="WP Template actions"
+               popup="true"
+               icon="AllIcons.FileTypes.Text">
+            <add-to-group group-id="MainMenu" anchor="last"/>
+            
+            <action id="WPCoder.FileTemplateSettings"
+                    class="com.wepie.coder.wpcoder.action.FileTemplateSettingsAction"
+                    text="File and Code Templates"
+                    description="Open file and code template settings"
+                    icon="AllIcons.General.Settings"/>
+
+            <action id="WPCoder.LiveTemplateSettings"
+                    class="com.wepie.coder.wpcoder.action.LiveTemplateSettingsAction"
+                    text="Live Templates"
+                    description="Open live template settings"
+                    icon="AllIcons.General.Settings"/>
+
+            <separator/>
+
+            <action id="WPCoder.ImportTemplate"
+                    class="com.wepie.coder.wpcoder.action.ImportTemplateAction"
+                    text="Import Templates"
+                    description="Import code templates"
+                    icon="AllIcons.Actions.Download"/>
+
+            <action id="WPCoder.ExportTemplate"
+                    class="com.wepie.coder.wpcoder.action.ExportTemplateAction"
+                    text="Export Templates"
+                    description="Export code templates"
+                    icon="AllIcons.Actions.Upload"/>
+        </group>
+    </actions>
+</idea-plugin>
