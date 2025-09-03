@@ -3,8 +3,7 @@
     <id>com.wepie.coder.wpcoder</id>
     <name>WP Template Manager</name>
     <vendor email="support@wepie.com" url="https://www.wepie.com">Wepie</vendor>
-    <version>1.0.0</version>
-    <license>MIT</license>
+    <version>1.0.1</version>
     <idea-version since-build="251" until-build="251.*"/>
     <change-notes><![CDATA[
         <h2>1.0.0</h2>
