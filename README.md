@@ -1,6 +1,6 @@
-# WP Template Manager
+# Template Manager
 
-WP Template Manager 是一个 Android Studio 插件，用于管理和同步代码模板。它提供了以下功能：
+Template Manager 是一个 Android Studio 插件，用于管理和同步代码模板。它提供了以下功能：
 
 ## 功能特点
 
