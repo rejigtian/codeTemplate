@@ -72,8 +72,22 @@
 
             <action id="WPCoder.ExportTemplate"
                     class="com.wepie.coder.wpcoder.action.ExportTemplateAction"
-                    text="Export Templates"
-                    description="Export code templates"
+                    text="Export File Templates"
+                    description="Export file and code templates"
+                    icon="AllIcons.Actions.Upload"/>
+
+            <separator/>
+
+            <action id="WPCoder.ImportLiveTemplate"
+                    class="com.wepie.coder.wpcoder.action.ImportLiveTemplateAction"
+                    text="Import Live Templates"
+                    description="Import live templates"
+                    icon="AllIcons.Actions.Download"/>
+
+            <action id="WPCoder.ExportLiveTemplate"
+                    class="com.wepie.coder.wpcoder.action.ExportLiveTemplateAction"
+                    text="Export Live Templates"
+                    description="Export live templates"
                     icon="AllIcons.Actions.Upload"/>
         </group>
     </actions>
