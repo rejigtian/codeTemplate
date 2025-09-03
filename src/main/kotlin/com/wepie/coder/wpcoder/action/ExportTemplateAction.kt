@@ -19,6 +19,12 @@ class ExportTemplateAction : AnAction() {
         // 获取所有用户自定义模板
         val fileTemplateManager = FileTemplateManager.getInstance(project)
         val templates = fileTemplateManager.allTemplates.filter { !it.isDefault }
+        
+        // 调试输出
+        templates.forEach { template ->
+            println("Template name: ${template.name}, fileName: ${template.fileName}, extension: ${template.extension}, description: ${template.description}")
+        }
+        
         if (templates.isEmpty()) {
             Messages.showInfoMessage(
                 project,
@@ -49,14 +55,27 @@ class ExportTemplateAction : AnAction() {
 
             // 保存所有模板
             templates.forEach { template ->
-                val file = File(tempDir, "${template.name}.${template.extension}")
-                file.writeText(template.text)
+                // 保存模板属性
+                val propertiesFile = File(tempDir, "${template.name}.properties")
+                propertiesFile.writeText("""
+                    NAME=${template.name}
+                    EXTENSION=${template.extension}
+                    FILENAME=${template.fileName}
+                    DESCRIPTION=${template.description}
+                    REFORMAT=${template.isReformatCode}
+                    LIVE_TEMPLATE_ENABLED=${template.isLiveTemplateEnabled}
+                """.trimIndent())
+                
+                // 保存模板内容
+                val contentFile = File(tempDir, "${template.name}.content")
+                contentFile.writeText(template.text)
             }
 
-            // 打包成 zip
+            // 打包成 zip，保持目录结构
             ZipOutputStream(targetFile.outputStream()).use { zipOut ->
-                tempDir.listFiles()?.forEach { file ->
-                    zipOut.putNextEntry(ZipEntry(file.name))
+                tempDir.walk().filter { it.isFile }.forEach { file ->
+                    val entryPath = file.relativeTo(tempDir).path.replace(File.separatorChar, '/')
+                    zipOut.putNextEntry(ZipEntry(entryPath))
                     file.inputStream().use { input ->
                         input.copyTo(zipOut)
                     }

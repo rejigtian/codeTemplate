@@ -1,10 +1,10 @@
 package com.wepie.coder.wpcoder.action
 
-import com.intellij.ide.fileTemplates.FileTemplate
 import com.intellij.ide.fileTemplates.FileTemplateManager
 import com.intellij.ide.fileTemplates.impl.FileTemplateManagerImpl
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileChooser.FileChooser
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.ui.Messages
@@ -41,40 +41,123 @@ class ImportTemplateAction : AnAction() {
         }
 
         try {
-            val fileTemplateManager = FileTemplateManager.getInstance(project)
-            when {
-                sourceFile.extension == "zip" -> {
-                    // 如果是 zip 文件，解压所有文件
-                    val tempDir = FileUtil.createTempDirectory("templates", "import")
-                    ZipFile(sourceFile).use { zip ->
-                        zip.entries().asSequence().forEach { entry ->
-                            if (!entry.isDirectory) {
-                                val tempFile = File(tempDir, entry.name)
-                                zip.getInputStream(entry).use { input ->
-                                    tempFile.outputStream().use { output ->
-                                        input.copyTo(output)
+            val fileTemplateManager = FileTemplateManager.getInstance(project) as FileTemplateManagerImpl
+            ApplicationManager.getApplication().runWriteAction {
+                when {
+                    sourceFile.extension == "zip" -> {
+                        // 如果是 zip 文件，解压所有文件
+                        val tempDir = FileUtil.createTempDirectory("templates", "import")
+                        try {
+                            ZipFile(sourceFile).use { zip ->
+                                // 调试：列出所有文件
+                                println("Files in zip:")
+                                zip.entries().asSequence().forEach { entry ->
+                                    println("  ${entry.name}")
+                                }
+                                
+                                // 第一步：解压所有文件
+                                zip.entries().asSequence().forEach { entry ->
+                                    if (!entry.isDirectory) {
+                                        val tempFile = File(tempDir, entry.name)
+                                        FileUtil.createParentDirs(tempFile)
+                                        zip.getInputStream(entry).use { input ->
+                                            tempFile.outputStream().use { output ->
+                                                input.copyTo(output)
+                                            }
+                                        }
                                     }
                                 }
                                 
-                                // 导入模板
-                                val name = tempFile.nameWithoutExtension
-                                val extension = tempFile.extension
-                                val content = tempFile.readText()
-                                val template = fileTemplateManager.addTemplate(name, extension)
-                                template.text = content
+                                // 调试：列出临时目录中的所有文件
+                                println("\nFiles in temp directory:")
+                                tempDir.walk().forEach { file ->
+                                    println("  ${file.relativeTo(tempDir)}")
+                                }
+                                
+                                // 第二步：处理所有属性文件
+                                tempDir.walk()
+                                    .filter { it.name.endsWith(".properties") }
+                                    .forEach { propFile ->
+                                        println("Processing properties file: ${propFile.name}")
+                                        val properties = java.util.Properties().apply {
+                                            propFile.inputStream().use { load(it) }
+                                        }
+                                        
+                                        val name = properties.getProperty("NAME")
+                                        val extension = properties.getProperty("EXTENSION")
+                                        val fileName = properties.getProperty("FILENAME")
+                                        val description = properties.getProperty("DESCRIPTION")
+                                        val reformat = properties.getProperty("REFORMAT")?.toBoolean() ?: true
+                                        val liveTemplateEnabled = properties.getProperty("LIVE_TEMPLATE_ENABLED")?.toBoolean() ?: false
+                                        
+                                        println("  Properties read: name=$name, extension=$extension, fileName=$fileName")
+                                        
+                                        // 读取对应的内容文件
+                                        val contentFile = File(tempDir, "$name.content")
+                                        println("  Looking for content file: ${contentFile.absolutePath}")
+                                        println("  Content file exists: ${contentFile.exists()}")
+                                        
+                                        if (contentFile.exists()) {
+                                            val content = contentFile.readText()
+                                            
+                                            // 先删除同名模板
+                                            fileTemplateManager.allTemplates.find { 
+                                                it.name == name && it.extension == extension 
+                                            }?.let {
+                                                fileTemplateManager.removeTemplate(it)
+                                            }
+                                            
+                                            // 先删除旧模板
+                                            fileTemplateManager.allTemplates
+                                                .filter { val bool = it.name == name && it.extension == extension
+                                                    bool
+                                                }
+                                                .forEach { fileTemplateManager.removeTemplate(it) }
+
+                                            // 添加新模板
+                                            val template = fileTemplateManager.addTemplate(name, extension)
+                                            template.text = content
+                                            template.isReformatCode = reformat
+                                            template.isLiveTemplateEnabled = liveTemplateEnabled
+
+                                            // 设置文件名
+                                            if (!fileName.isNullOrEmpty()) {
+                                                template.fileName = fileName
+                                                // 强制保存模板配置
+                                                fileTemplateManager.saveAllTemplates()
+                                            }
+
+                                            // 调试输出
+                                            println("Imported template: name=$name, fileName=${template.fileName}, extension=$extension")
+                                        } else {
+                                            println("  WARNING: Content file not found for template: $name")
+                                        }
+                                    }
                             }
+                        } finally {
+                            FileUtil.delete(tempDir)
                         }
                     }
-                    FileUtil.delete(tempDir)
+                    else -> {
+                        // 如果是单个文件，直接导入
+                        val name = sourceFile.nameWithoutExtension
+                            .replace(" ", "_") // 替换空格为下划线
+                            .replace("-", "_") // 替换横线为下划线
+                        val extension = sourceFile.extension
+                        val content = sourceFile.readText()
+                        
+                        // 先删除同名模板
+                        fileTemplateManager.allTemplates.find { it.name == name }?.let {
+                            fileTemplateManager.removeTemplate(it)
+                        }
+                        // 添加新模板
+                        val template = fileTemplateManager.addTemplate(name, extension)
+                        template.text = content
+                    }
                 }
-                else -> {
-                    // 如果是单个文件，直接导入
-                    val name = sourceFile.nameWithoutExtension
-                    val extension = sourceFile.extension
-                    val content = sourceFile.readText()
-                    val template = fileTemplateManager.addTemplate(name, extension)
-                    template.text = content
-                }
+                
+                // 强制刷新模板管理器
+                fileTemplateManager.setTemplates(FileTemplateManager.DEFAULT_TEMPLATES_CATEGORY, fileTemplateManager.getAllTemplates().toList())
             }
 
             Messages.showInfoMessage(
