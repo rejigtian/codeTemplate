@@ -6,7 +6,7 @@
     <version>1.0.1</version>
     <idea-version since-build="251" until-build="251.*"/>
     <change-notes><![CDATA[
-        <h2>1.0.0</h2>
+        <h2>1.0.1</h2>
         <ul>
             <li>Initial release</li>
             <li>Support import/export file templates</li>
