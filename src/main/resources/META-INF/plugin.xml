@@ -2,7 +2,19 @@
 <idea-plugin>
     <id>com.wepie.coder.wpcoder</id>
     <name>WP Template Manager</name>
-    <vendor>Wepie</vendor>
+    <vendor email="support@wepie.com" url="https://www.wepie.com">Wepie</vendor>
+    <version>1.0.0</version>
+    <license>MIT</license>
+    <idea-version since-build="251" until-build="251.*"/>
+    <change-notes><![CDATA[
+        <h2>1.0.0</h2>
+        <ul>
+            <li>Initial release</li>
+            <li>Support import/export file templates</li>
+            <li>Support import/export live templates</li>
+            <li>Add tool window for quick access</li>
+        </ul>
+    ]]></change-notes>
     <description><![CDATA[
         Template management plugin for Android Studio.<br>
         Features:
@@ -28,7 +40,7 @@
         <toolWindow
             id="WPCoder"
             anchor="right"
-            icon="AllIcons.FileTypes.Text"
+            icon="/icons/pluginIcon.svg"
             factoryClass="com.wepie.coder.wpcoder.window.TemplateToolWindowFactory"
             canCloseContents="false"
             order="last"/>

@@ -1,5 +1,6 @@
 package com.wepie.coder.wpcoder.window
 
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.DefaultActionGroup
@@ -11,16 +12,35 @@ class TemplateToolWindowPanel(project: Project) : SimpleToolWindowPanel(true, tr
     init {
         // 设置工具栏
         val actionManager = ActionManager.getInstance()
-        val actionGroup = DefaultActionGroup().apply {
+        
+        // 创建文件模板组
+        val fileTemplateGroup = DefaultActionGroup("文件模板", true).apply {
+            templatePresentation.icon = AllIcons.Actions.MenuOpen
             add(actionManager.getAction("WPCoder.FileTemplateSettings"))
-            add(actionManager.getAction("WPCoder.LiveTemplateSettings"))
             addSeparator()
             add(actionManager.getAction("WPCoder.ImportTemplate"))
             add(actionManager.getAction("WPCoder.ExportTemplate"))
         }
+        
+        // 创建实时模板组
+        val liveTemplateGroup = DefaultActionGroup("实时模板", true).apply {
+            templatePresentation.icon = AllIcons.FileTypes.Text
+            add(actionManager.getAction("WPCoder.LiveTemplateSettings"))
+            addSeparator()
+            add(actionManager.getAction("WPCoder.ImportLiveTemplate"))
+            add(actionManager.getAction("WPCoder.ExportLiveTemplate"))
+        }
+        
+        // 创建主工具栏
+        val mainGroup = DefaultActionGroup().apply {
+            add(fileTemplateGroup)
+            addSeparator()
+            add(liveTemplateGroup)
+        }
+        
         val toolbar = actionManager.createActionToolbar(
             ActionPlaces.TOOLWINDOW_CONTENT,
-            actionGroup,
+            mainGroup,
             true
         )
         toolbar.targetComponent = this
