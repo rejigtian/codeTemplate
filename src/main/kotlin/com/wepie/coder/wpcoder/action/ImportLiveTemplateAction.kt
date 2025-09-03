@@ -1,7 +1,7 @@
 package com.wepie.coder.wpcoder.action
 
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
-import com.intellij.codeInsight.template.LiveTemplateContextService
+
 import com.intellij.codeInsight.template.impl.TemplateSettings
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -87,8 +87,7 @@ class ImportLiveTemplateAction : AnAction() {
                                     val template = TemplateSettings.readTemplateFromElement(
                                         groupName,
                                         templateElement,
-                                        javaClass.classLoader,
-                                        LiveTemplateContextService.getInstance()
+                                        javaClass.classLoader
                                     )
                                     
                                     // 如果已存在同名模板，先删除

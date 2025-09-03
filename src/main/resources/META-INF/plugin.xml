@@ -45,13 +45,7 @@
             canCloseContents="false"
             order="last"/>
 
-        <!-- 注册服务 -->
-        <applicationService
-            serviceInterface="com.wepie.coder.wpcoder.service.TemplateStorage"
-            serviceImplementation="com.wepie.coder.wpcoder.service.impl.TemplateStorageImpl"/>
-        <projectService
-            serviceInterface="com.wepie.coder.wpcoder.service.TemplateManager"
-            serviceImplementation="com.wepie.coder.wpcoder.service.impl.TemplateManagerImpl"/>
+
     </extensions>
 
     <actions>
