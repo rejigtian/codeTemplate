@@ -70,8 +70,8 @@ class TemplatePanel(
 
             addSeparator()
 
-            // 导出本地模板
-            add(object : AnAction("Export Templates", "", AllIcons.Actions.Upload) {
+            // 本地导出
+            add(object : AnAction("Export to File", "", AllIcons.Actions.MenuSaveall) {
                 override fun actionPerformed(e: AnActionEvent) {
                     if (templateType == "live") {
                         ExportLiveTemplateAction().actionPerformed(e)
@@ -81,8 +81,8 @@ class TemplatePanel(
                 }
             })
 
-            // 导入本地模板
-            add(object : AnAction("Import Templates", "", AllIcons.Actions.Download) {
+            // 本地导入
+            add(object : AnAction("Import from File", "", AllIcons.Actions.MenuOpen) {
                 override fun actionPerformed(e: AnActionEvent) {
                     if (templateType == "live") {
                         ImportLiveTemplateAction().actionPerformed(e)
@@ -94,15 +94,15 @@ class TemplatePanel(
 
             addSeparator()
 
-            // 上传模板
-            add(object : AnAction("Upload to Server", "", AllIcons.Actions.Upload) {
+            // 分享到服务器
+            add(object : AnAction("Share to Server", "", AllIcons.Actions.Upload) {
                 override fun actionPerformed(e: AnActionEvent) {
                     uploadTemplate()
                 }
             })
 
-            // 下载模板
-            add(object : AnAction("Download from Server", "", AllIcons.Actions.Download) {
+            // 从服务器获取
+            add(object : AnAction("Get from Server", "", AllIcons.Actions.Download) {
                 override fun actionPerformed(e: AnActionEvent) {
                     downloadTemplate()
                 }
