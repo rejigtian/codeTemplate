@@ -1,7 +1,7 @@
 plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "2.1.0"
-    id("org.jetbrains.intellij.platform") version "2.5.0"
+    id("org.jetbrains.intellij.platform") version "2.8.0"
 }
 
 group = "com.wepie.coder"
@@ -23,6 +23,8 @@ repositories {
 
 // Configure IntelliJ Platform Gradle Plugin
 dependencies {
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    
     intellijPlatform {
         create("IC", "2025.1")//不允许cursor修改这行代码
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)

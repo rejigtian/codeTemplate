@@ -3,25 +3,23 @@ package com.wepie.coder.wpcoder.window
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
-import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
-import javax.swing.JPanel
-import java.awt.BorderLayout
+import javax.swing.JTabbedPane
 
 class TemplateToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-        val toolWindowContent = TemplateToolWindowContent(project)
-        val content = ContentFactory.getInstance().createContent(
-            toolWindowContent.getContent(),
-            "",  // 不显示标签页标题
-            false
-        )
+        val contentFactory = ContentFactory.getInstance()
+        val tabbedPane = JTabbedPane()
+
+        // 添加代码模板面板
+        val liveTemplatePanel = TemplatePanel(project, "live")
+        tabbedPane.addTab("代码模板", liveTemplatePanel)
+
+        // 添加文件模板面板
+        val fileTemplatePanel = TemplatePanel(project, "file")
+        tabbedPane.addTab("文件模板", fileTemplatePanel)
+
+        val content = contentFactory.createContent(tabbedPane, "", false)
         toolWindow.contentManager.addContent(content)
     }
 }
-class TemplateToolWindowContent(private val project: Project) {
-    private val panel = TemplateToolWindowPanel(project)
-
-    fun getContent() = panel
-}
-

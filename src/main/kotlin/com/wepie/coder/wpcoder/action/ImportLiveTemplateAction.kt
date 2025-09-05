@@ -9,6 +9,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.fileChooser.FileChooser
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.JDOMUtil
 import org.jdom.Element
@@ -16,24 +17,7 @@ import java.io.File
 import java.util.zip.ZipInputStream
 
 class ImportLiveTemplateAction : AnAction() {
-    override fun actionPerformed(e: AnActionEvent) {
-        val project = e.project ?: return
-
-        val descriptor = FileChooserDescriptor(
-            true,
-            false,
-            true,
-            false,
-            false,
-            false
-        ).withTitle("导入实时模板")
-            .withDescription("选择模板压缩包文件")
-            .withFileFilter { it.extension == "zip" }
-
-        val virtualFile = FileChooser.chooseFile(descriptor, project, null)
-            ?: return
-
-        val sourceFile = File(virtualFile.path)
+    fun importTemplateFromFile(project: Project, sourceFile: File) {
         if (!sourceFile.exists()) {
             Messages.showErrorDialog(
                 project,
@@ -115,6 +99,31 @@ class ImportLiveTemplateAction : AnAction() {
                 "模板导入成功",
                 "导入实时模板"
             )
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    override fun actionPerformed(e: AnActionEvent) {
+        val project = e.project ?: return
+
+        val descriptor = FileChooserDescriptor(
+            true,
+            false,
+            true,
+            false,
+            false,
+            false
+        ).withTitle("导入实时模板")
+            .withDescription("选择模板压缩包文件")
+            .withFileFilter { it.extension == "zip" }
+
+        val virtualFile = FileChooser.chooseFile(descriptor, project, null)
+            ?: return
+
+        val sourceFile = File(virtualFile.path)
+        try {
+            importTemplateFromFile(project, sourceFile)
         } catch (e: Exception) {
             Messages.showErrorDialog(
                 project,

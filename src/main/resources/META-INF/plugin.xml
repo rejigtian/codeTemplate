@@ -44,6 +44,10 @@
             canCloseContents="false"
             order="last"/>
 
+        <!-- 注册服务 -->
+        <applicationService
+            serviceImplementation="com.wepie.coder.wpcoder.service.TemplateServerService"/>
+
 
     </extensions>
 
