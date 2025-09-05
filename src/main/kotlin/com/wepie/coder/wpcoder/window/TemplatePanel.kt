@@ -112,6 +112,17 @@ class TemplatePanel(
                 }
             })
 
+            // 删除模板
+            add(object : AnAction("Delete Template", "", AllIcons.Actions.GC) {
+                override fun actionPerformed(e: AnActionEvent) {
+                    deleteTemplate()
+                }
+
+                override fun update(e: AnActionEvent) {
+                    e.presentation.isEnabled = templateList.selectedValue != null
+                }
+            })
+
             // 刷新
             add(object : AnAction("Refresh", "", AllIcons.Actions.Refresh) {
                 override fun actionPerformed(e: AnActionEvent) {
@@ -174,6 +185,44 @@ class TemplatePanel(
                 Messages.showErrorDialog(
                     project,
                     "Failed to upload template: ${e.message}",
+                    "Error"
+                )
+            }
+        }
+    }
+
+    private fun deleteTemplate() {
+        val template = templateList.selectedValue ?: run {
+            Messages.showWarningDialog(
+                project,
+                "Please select a template to delete",
+                "Warning"
+            )
+            return
+        }
+
+        val result = Messages.showYesNoDialog(
+            project,
+            "Are you sure you want to delete this template?\nThis action cannot be undone.",
+            "Delete Template",
+            "Delete",
+            "Cancel",
+            Messages.getWarningIcon()
+        )
+
+        if (result == 0) {  // 0 表示点击了"Delete"按钮
+            try {
+                templateService.deleteTemplate(template.type, template.fileName)
+                refreshTemplates()
+                Messages.showInfoMessage(
+                    project,
+                    "Template deleted successfully",
+                    "Success"
+                )
+            } catch (e: Exception) {
+                Messages.showErrorDialog(
+                    project,
+                    "Failed to delete template: ${e.message}",
                     "Error"
                 )
             }

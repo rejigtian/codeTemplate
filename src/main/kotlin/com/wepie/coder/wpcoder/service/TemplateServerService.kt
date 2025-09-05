@@ -121,6 +121,34 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
         }
     }
 
+    fun deleteTemplate(type: String, fileName: String) {
+        val url = "${myState.serverUrl}/api/templates/$type/$fileName"
+        println("=== 开始删除模板 ===")
+        println("删除地址: $url")
+        println("模板类型: $type")
+        println("文件名称: $fileName")
+
+        val request = Request.Builder()
+            .url(url)
+            .header("X-API-Key", myState.apiKey)
+            .delete()
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val errorBody = response.body?.string() ?: "Unknown error"
+                println("删除失败: ${response.code} - ${response.message} - $errorBody")
+                throw Exception(when (response.code) {
+                    401 -> "Invalid API key"
+                    403 -> "Permission denied: Only administrators can delete templates"
+                    404 -> "Template not found"
+                    else -> "Failed to delete template: ${response.message} - $errorBody"
+                })
+            }
+            println("删除成功: ${response.code} - ${response.message}")
+        }
+    }
+
     fun updateServerConfig(serverUrl: String, apiKey: String) {
         myState.serverUrl = serverUrl
         myState.apiKey = apiKey

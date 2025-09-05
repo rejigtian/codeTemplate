@@ -152,5 +152,51 @@ func main() {
         })
     })
 
+    // 删除模板 - 需要管理员权限
+    r.DELETE("/api/templates/:type/:name", requireAuth(PermissionAdmin), func(c *gin.Context) {
+        templateType := c.Param("type")
+        fileName := c.Param("name")
+
+        if templateType != "live" && templateType != "file" {
+            c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template type"})
+            return
+        }
+
+        // 检查文件是否存在
+        filePath := filepath.Join("templates", templateType, fileName)
+        if _, err := os.Stat(filePath); os.IsNotExist(err) {
+            c.JSON(http.StatusNotFound, gin.H{"error": "Template not found"})
+            return
+        }
+
+        metadataStore.Lock()
+        defer metadataStore.Unlock()
+
+        // 检查模板是否存在于元数据中
+        if _, exists := metadataStore.Templates[fileName]; !exists {
+            c.JSON(http.StatusNotFound, gin.H{"error": "Template metadata not found"})
+            return
+        }
+
+        // 删除文件
+        if err := os.Remove(filePath); err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete template file"})
+            return
+        }
+
+        // 删除元数据
+        delete(metadataStore.Templates, fileName)
+        if err := metadataStore.Save(); err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update metadata"})
+            return
+        }
+
+        c.JSON(http.StatusOK, gin.H{
+            "message": "Template deleted successfully",
+            "fileName": fileName,
+            "type": templateType,
+        })
+    })
+
     r.Run(":8080")
 }
