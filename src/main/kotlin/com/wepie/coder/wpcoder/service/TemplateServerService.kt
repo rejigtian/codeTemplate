@@ -4,19 +4,14 @@ import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
-import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.util.io.FileUtil
 import com.intellij.util.io.HttpRequests
-import com.intellij.util.xmlb.XmlSerializerUtil
-import org.json.JSONObject
-import java.io.File
-import java.nio.file.Files
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
-import java.util.concurrent.TimeUnit
+import org.json.JSONArray
+import java.io.File
 
 @Service(Service.Level.APP)
 @State(
@@ -24,10 +19,9 @@ import java.util.concurrent.TimeUnit
     storages = [Storage("template-server.xml")]
 )
 class TemplateServerService : PersistentStateComponent<TemplateServerService.State> {
-    private val LOG = Logger.getInstance(TemplateServerService::class.java)
-
     data class State(
-        var serverUrl: String = "http://localhost:8080"
+        var serverUrl: String = "http://localhost:8080",
+        var apiKey: String = ""
     )
 
     data class TemplateInfo(
@@ -37,43 +31,39 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
     )
 
     private var myState = State()
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
+    private val client = OkHttpClient()
 
     override fun getState(): State = myState
 
     override fun loadState(state: State) {
-        XmlSerializerUtil.copyBean(state, myState)
+        myState = state
     }
 
     fun getTemplates(type: String? = null): List<TemplateInfo> {
         val url = "${myState.serverUrl}/api/templates/list" + (type?.let { "?type=$it" } ?: "")
         return HttpRequests.request(url)
+            .tuner {
+                it.setRequestProperty("X-API-Key", myState.apiKey)
+            }
             .accept("application/json")
             .connect { request ->
                 val responseText = request.readString()
-                val response = JSONObject(responseText)
+                val responseArray = JSONArray(responseText)
                 val result = mutableListOf<TemplateInfo>()
-                for (typeKey in response.keys()) {
-                    val templates = response.getJSONArray(typeKey)
-                    for (i in 0 until templates.length()) {
-                        val template = templates.getJSONObject(i)
-                        result.add(TemplateInfo(
-                            fileName = template.getString("fileName"),
-                            displayName = template.getString("displayName"),
-                            type = typeKey
-                        ))
-                    }
+                for (i in 0 until responseArray.length()) {
+                    val template = responseArray.getJSONObject(i)
+                    result.add(TemplateInfo(
+                        fileName = template.getString("fileName"),
+                        displayName = template.getString("displayName"),
+                        type = template.getString("type")
+                    ))
                 }
                 result
             }
     }
 
     fun downloadTemplate(type: String, fileName: String): File {
-        val tempDir = FileUtil.createTempDirectory("templates", "", true)
+        val tempDir = com.intellij.openapi.util.io.FileUtil.createTempDirectory("templates", "", true)
         val tempFile = File(tempDir, fileName)
         val url = "${myState.serverUrl}/api/templates/$type/$fileName"
         
@@ -82,21 +72,24 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
         println("保存路径: ${tempFile.absolutePath}")
         
         HttpRequests.request(url)
+            .tuner {
+                it.setRequestProperty("X-API-Key", myState.apiKey)
+            }
             .connect { request ->
-                Files.copy(request.inputStream, tempFile.toPath())
+                java.nio.file.Files.copy(request.inputStream, tempFile.toPath())
             }
         
         println("下载完成: 文件存在=${tempFile.exists()}, 大小=${tempFile.length()}")
-        
-        if (!tempFile.exists() || tempFile.length() == 0L) {
-            throw Exception("Failed to download template: File is empty or does not exist")
-        }
-
         return tempFile
     }
 
     fun uploadTemplate(type: String, displayName: String, file: File) {
         val url = "${myState.serverUrl}/api/templates/upload/$type"
+        println("=== 开始上传模板 ===")
+        println("上传地址: $url")
+        println("模板类型: $type")
+        println("显示名称: $displayName")
+        println("文件名称: ${file.name}")
         
         val requestBody = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
@@ -110,14 +103,26 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
 
         val request = Request.Builder()
             .url(url)
+            .header("X-API-Key", myState.apiKey)
             .post(requestBody)
             .build()
 
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string() ?: "Unknown error"
-                throw Exception("Failed to upload template: ${response.message} - $errorBody")
+                println("上传失败: ${response.code} - ${response.message} - $errorBody")
+                throw Exception(when (response.code) {
+                    401 -> "Invalid API key"
+                    403 -> "Permission denied: Your API key doesn't have sufficient permissions"
+                    else -> "Failed to upload template: ${response.message} - $errorBody"
+                })
             }
+            println("上传成功: ${response.code} - ${response.message}")
         }
+    }
+
+    fun updateServerConfig(serverUrl: String, apiKey: String) {
+        myState.serverUrl = serverUrl
+        myState.apiKey = apiKey
     }
 }

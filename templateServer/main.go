@@ -1,64 +1,48 @@
 package main
 
 import (
-    "encoding/json"
+    "fmt"
     "github.com/gin-gonic/gin"
-    "io/ioutil"
+    "github.com/google/uuid"
     "net/http"
     "os"
     "path/filepath"
-    "strings"
 )
 
-// 支持的模板类型
-var validTypes = map[string]bool{
-    "live": true,
-    "file": true,
-}
+func requireAuth(requiredPerm Permission) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        apiKey := getAPIKeyFromHeader(c)
+        if apiKey == "" {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "API key is required"})
+            c.Abort()
+            return
+        }
 
-type TemplateInfo struct {
-    FileName    string `json:"fileName"`
-    DisplayName string `json:"displayName"`
-}
+        if !validateAPIKey(apiKey, requiredPerm) {
+            c.JSON(http.StatusForbidden, gin.H{"error": "Insufficient permissions"})
+            c.Abort()
+            return
+        }
 
-type TemplateMetadata struct {
-    Templates map[string]map[string]string `json:"templates"` // type -> filename -> displayName
-}
-
-func loadMetadata() TemplateMetadata {
-    data, err := ioutil.ReadFile("templates/metadata.json")
-    if err != nil {
-        return TemplateMetadata{Templates: make(map[string]map[string]string)}
+        c.Next()
     }
-
-    var metadata TemplateMetadata
-    if err := json.Unmarshal(data, &metadata); err != nil {
-        return TemplateMetadata{Templates: make(map[string]map[string]string)}
-    }
-
-    return metadata
-}
-
-func saveMetadata(metadata TemplateMetadata) error {
-    data, err := json.MarshalIndent(metadata, "", "  ")
-    if err != nil {
-        return err
-    }
-    return ioutil.WriteFile("templates/metadata.json", data, 0644)
 }
 
 func main() {
-    // 创建模板目录
-    os.MkdirAll("templates/live", os.ModePerm)
-    os.MkdirAll("templates/file", os.ModePerm)
-    
+    // 创建必要的目录
+    os.MkdirAll("templates/live", 0755)
+    os.MkdirAll("templates/file", 0755)
+
+    metadataStore := NewTemplateMetadata("templates/metadata.json")
+    metadataStore.Load()
+
     r := gin.Default()
-    
-    // 允许跨域
+
+    // CORS 中间件
     r.Use(func(c *gin.Context) {
         c.Header("Access-Control-Allow-Origin", "*")
         c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        c.Header("Access-Control-Allow-Headers", "Content-Type")
+        c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-API-Key")
         if c.Request.Method == "OPTIONS" {
             c.AbortWithStatus(204)
             return
@@ -66,50 +50,32 @@ func main() {
         c.Next()
     })
 
-    // 列出模板文件
-    r.GET("/api/templates/list", func(c *gin.Context) {
-        templateType := c.Query("type") // 可选参数，筛选类型
-        metadata := loadMetadata()
-
-        result := make(map[string][]TemplateInfo)
+    // 列出模板文件 - 需要读权限
+    r.GET("/api/templates/list", requireAuth(PermissionRead), func(c *gin.Context) {
+        templateType := c.Query("type")
         
-        // 如果指定了类型，只列出该类型的模板
-        if templateType != "" {
-            if !validTypes[templateType] {
-                c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template type"})
-                return
-            }
-            if typeMetadata, ok := metadata.Templates[templateType]; ok {
-                for fileName, displayName := range typeMetadata {
-                    result[templateType] = append(result[templateType], TemplateInfo{
-                        FileName: fileName,
-                        DisplayName: displayName,
-                    })
-                }
-            }
-        } else {
-            // 列出所有类型的模板
-            for tType := range validTypes {
-                if typeMetadata, ok := metadata.Templates[tType]; ok {
-                    for fileName, displayName := range typeMetadata {
-                        result[tType] = append(result[tType], TemplateInfo{
-                            FileName: fileName,
-                            DisplayName: displayName,
-                        })
-                    }
-                }
+        metadataStore.RLock()
+        defer metadataStore.RUnlock()
+
+        result := make([]TemplateInfo, 0)
+        for _, tpl := range metadataStore.Templates {
+            if templateType == "" || tpl.Type == templateType {
+                result = append(result, tpl)
             }
         }
-        
+        // 如果没有模板，返回空数组而不是 null
+        if result == nil {
+            result = make([]TemplateInfo, 0)
+        }
         c.JSON(http.StatusOK, result)
     })
 
-    // 下载模板
-    r.GET("/api/templates/:type/:name", func(c *gin.Context) {
+    // 下载模板 - 需要读权限
+    r.GET("/api/templates/:type/:name", requireAuth(PermissionRead), func(c *gin.Context) {
         templateType := c.Param("type")
         fileName := c.Param("name")
 
-        if !validTypes[templateType] {
+        if templateType != "live" && templateType != "file" {
             c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template type"})
             return
         }
@@ -123,16 +89,15 @@ func main() {
         c.File(filePath)
     })
 
-    // 上传模板
-    r.POST("/api/templates/upload/:type", func(c *gin.Context) {
+    // 上传模板 - 需要写权限
+    r.POST("/api/templates/upload/:type", requireAuth(PermissionWrite), func(c *gin.Context) {
         templateType := c.Param("type")
-        displayName := c.PostForm("displayName")
-
-        if !validTypes[templateType] {
+        if templateType != "live" && templateType != "file" {
             c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template type"})
             return
         }
 
+        displayName := c.PostForm("displayName")
         if displayName == "" {
             c.JSON(http.StatusBadRequest, gin.H{"error": "Display name is required"})
             return
@@ -140,44 +105,50 @@ func main() {
 
         file, err := c.FormFile("file")
         if err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded"})
+            c.JSON(http.StatusBadRequest, gin.H{"error": "File is required"})
             return
         }
 
-        // 检查文件扩展名
-        ext := strings.ToLower(filepath.Ext(file.Filename))
+        ext := filepath.Ext(file.Filename)
         if ext != ".zip" {
             c.JSON(http.StatusBadRequest, gin.H{"error": "Only .zip files are allowed"})
             return
         }
 
         // 生成唯一文件名
-        fileName := strings.ReplaceAll(displayName, " ", "_") + "_" + 
-                   strings.ReplaceAll(filepath.Base(file.Filename), " ", "_")
-        targetPath := filepath.Join("templates", templateType, fileName)
+        filename := fmt.Sprintf("%s_%s%s", displayName, uuid.New().String()[:8], ext)
+        targetPath := filepath.Join("templates", templateType, filename)
 
-        // 保存文件
+        // 检查是否已存在同名模板
+        metadataStore.Lock()
+        for _, tpl := range metadataStore.Templates {
+            if tpl.DisplayName == displayName && tpl.Type == templateType {
+                metadataStore.Unlock()
+                c.JSON(http.StatusBadRequest, gin.H{"error": "Template with this name already exists"})
+                return
+            }
+        }
+
         if err := c.SaveUploadedFile(file, targetPath); err != nil {
+            metadataStore.Unlock()
             c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
             return
         }
 
-        // 更新元数据
-        metadata := loadMetadata()
-        if metadata.Templates[templateType] == nil {
-            metadata.Templates[templateType] = make(map[string]string)
+        // 保存元数据
+        metadataStore.Templates[filename] = TemplateInfo{
+            DisplayName: displayName,
+            FileName:    filename,
+            Type:        templateType,
         }
-        metadata.Templates[templateType][fileName] = displayName
-        if err := saveMetadata(metadata); err != nil {
-            os.Remove(targetPath) // 如果元数据保存失败，删除已上传的文件
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save metadata"})
-            return
-        }
+        metadataStore.Save()
+        metadataStore.Unlock()
 
         c.JSON(http.StatusOK, gin.H{
-            "message": "Template uploaded successfully",
-            "fileName": fileName,
+            "message":     "Template uploaded successfully",
             "displayName": displayName,
+            "fileName":    filename,
+            "type":        templateType,
         })
     })
 

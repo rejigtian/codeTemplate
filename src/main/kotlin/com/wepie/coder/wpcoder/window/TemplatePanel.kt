@@ -118,6 +118,25 @@ class TemplatePanel(
                     refreshTemplates()
                 }
             })
+
+            addSeparator()
+
+            // 服务器配置
+            add(object : AnAction("Server Settings", "", AllIcons.General.GearPlain) {
+                override fun actionPerformed(e: AnActionEvent) {
+                    val dialog = ServerConfigDialog(
+                        project,
+                        templateService.state.serverUrl,
+                        templateService.state.apiKey
+                    )
+                    if (dialog.showAndGet()) {
+                        templateService.updateServerConfig(
+                            dialog.getServerUrl(),
+                            dialog.getApiKey()
+                        )
+                    }
+                }
+            })
         }
 
         return ActionManager.getInstance()
