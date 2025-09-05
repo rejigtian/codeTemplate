@@ -38,5 +38,6 @@ bin/
 ### VS Code ###
 .vscode/
 .intellijPlatform/
+/templateServer/templates
 ### Mac OS ###
 .DS_Store
