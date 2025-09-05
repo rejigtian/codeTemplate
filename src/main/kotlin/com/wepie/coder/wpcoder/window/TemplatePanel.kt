@@ -133,7 +133,7 @@ class TemplatePanel(
             addSeparator()
 
             // 服务器配置
-            add(object : AnAction("Server Settings", "", AllIcons.General.GearPlain) {
+            add(object : AnAction("Server Settings", "", AllIcons.General.Web) {
                 override fun actionPerformed(e: AnActionEvent) {
                     val dialog = ServerConfigDialog(
                         project,

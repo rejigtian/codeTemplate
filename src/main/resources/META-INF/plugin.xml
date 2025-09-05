@@ -1,12 +1,20 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <idea-plugin>
     <id>com.wepie.coder.wpcoder</id>
-    <name>WP Template Manager</name>
-    <vendor email="support@wepie.com" url="https://www.wepie.com">Wepie</vendor>
-    <version>1.0.1</version>
+    <name>WP Template Coder</name>
+    <vendor email="tianruijie@wepie.com" url="https://www.wepie.com">Wepie</vendor>
+    <version>1.1.0</version>
     <idea-version since-build="251" until-build="251.*"/>
     <change-notes><![CDATA[
-        <h2>1.0.1</h2>
+        <h2>1.1.0</h2>
+        <ul>
+            <li>Added template sharing feature with remote server</li>
+            <li>Added role-based access control for template sharing</li>
+            <li>Added template deletion with admin permission</li>
+            <li>Improved UI with better organized toolbar</li>
+            <li>Added server configuration dialog</li>
+        </ul>
+        <h2>1.0.2</h2>
         <ul>
             <li>Initial release</li>
             <li>Support import/export file templates</li>
@@ -15,11 +23,51 @@
         </ul>
     ]]></change-notes>
     <description><![CDATA[
-        Template management plugin for Android Studio.<br>
+        Template management plugin for Android Studio with sharing capabilities.<br>
+        <br>
         Features:
         <ul>
-            <li>Quick access to template settings</li>
-            <li>Import/Export templates without affecting other settings</li>
+            <li><b>Local Template Management</b>
+                <ul>
+                    <li>Quick access to template settings</li>
+                    <li>Import/Export templates to/from files</li>
+                    <li>Support both File Templates and Live Templates</li>
+                </ul>
+            </li>
+            <li><b>Template Sharing</b>
+                <ul>
+                    <li>Share templates with team members via remote server</li>
+                    <li>Role-based access control (Admin/Writer/Reader)</li>
+                    <li>Easy-to-use server configuration</li>
+                </ul>
+            </li>
+            <li><b>User Interface</b>
+                <ul>
+                    <li>Intuitive tool window with organized toolbar</li>
+                    <li>Separate tabs for File Templates and Live Templates</li>
+                    <li>Clear visual feedback for all operations</li>
+                </ul>
+            </li>
+        </ul>
+        <br>
+        Usage:
+        <ul>
+            <li>Open the WP Coder tool window (View > Tool Windows > WP Coder)</li>
+            <li>Switch between File Templates and Live Templates using tabs</li>
+            <li>Use toolbar buttons for various operations:
+                <ul>
+                    <li>Export/Import templates to/from files</li>
+                    <li>Share/Get templates from server</li>
+                    <li>Configure server settings (requires API key)</li>
+                </ul>
+            </li>
+        </ul>
+        <br>
+        Server Access Levels:
+        <ul>
+            <li>Admin: Full access (upload, download, delete)</li>
+            <li>Writer: Can upload and download templates</li>
+            <li>Reader: Can only download templates</li>
         </ul>
     ]]></description>
 
@@ -47,8 +95,6 @@
         <!-- 注册服务 -->
         <applicationService
             serviceImplementation="com.wepie.coder.wpcoder.service.TemplateServerService"/>
-
-
     </extensions>
 
     <actions>
