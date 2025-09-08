@@ -4,6 +4,7 @@ import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
+import com.intellij.openapi.ui.Messages
 import com.intellij.util.io.HttpRequests
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -20,16 +21,23 @@ import java.io.File
     storages = [Storage("template-server.xml")]
 )
 class TemplateServerService : PersistentStateComponent<TemplateServerService.State> {
+    companion object {
+        const val DEFAULT_SERVER_URL = "http://124.222.104.87:8080"
+        const val DEFAULT_API_KEY = "4EE488BE0C1F4C2FA58A1040F1D8251D"
+        const val GITHUB_REPO_URL = "https://github.com/rejigtian/codeTemplateServer"
+    }
+
     data class State(
-        var serverUrl: String = "http://localhost:8080",
-        var apiKey: String = ""
+        var serverUrl: String = DEFAULT_SERVER_URL,
+        var apiKey: String = DEFAULT_API_KEY,
+        var hasShownDefaultWarning: Boolean = false  // 添加标记，记录是否显示过提示
     )
 
     data class TemplateInfo(
         val fileName: String,
         val displayName: String,
         val type: String,
-        val createTime: Long = 0  // 添加创建时间字段
+        val createTime: Long = 0
     )
 
     private var myState = State()
@@ -41,7 +49,26 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
         myState = state
     }
 
+    private fun checkAndShowDefaultWarning() {
+        if (!myState.hasShownDefaultWarning && 
+            myState.serverUrl == DEFAULT_SERVER_URL && 
+            myState.apiKey == DEFAULT_API_KEY) {
+            Messages.showWarningDialog(
+                """当前使用的是默认开放服务器地址和只读密钥。
+                |
+                |如果需要自定义地址和完整权限，请访问：
+                |$GITHUB_REPO_URL
+                |按照说明部署自己的服务器。
+                """.trimMargin(),
+                "使用默认服务器配置"
+            )
+            myState.hasShownDefaultWarning = true
+        }
+    }
+
     fun getTemplates(type: String? = null): List<TemplateInfo> {
+        checkAndShowDefaultWarning()
+        
         val url = "${myState.serverUrl}/api/templates/list" + (type?.let { "?type=$it" } ?: "")
         return HttpRequests.request(url)
             .tuner {
@@ -61,11 +88,13 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
                         createTime = obj.get("createTime")?.asLong ?: 0
                     ))
                 }
-                result  // 服务端已经排序，这里不需要再排序
+                result
             }
     }
 
     fun downloadTemplate(type: String, fileName: String): File {
+        checkAndShowDefaultWarning()
+        
         val tempDir = com.intellij.openapi.util.io.FileUtil.createTempDirectory("templates", "", true)
         val tempFile = File(tempDir, fileName)
         val url = "${myState.serverUrl}/api/templates/$type/$fileName"
@@ -87,6 +116,16 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
     }
 
     fun uploadTemplate(type: String, displayName: String, file: File) {
+        checkAndShowDefaultWarning()
+        
+        if (myState.serverUrl == DEFAULT_SERVER_URL && myState.apiKey == DEFAULT_API_KEY) {
+            throw Exception("""
+                |当前使用默认服务器配置，仅具有只读权限。
+                |如需上传模板，请访问：$GITHUB_REPO_URL
+                |按照说明部署自己的服务器。
+            """.trimMargin())
+        }
+        
         val url = "${myState.serverUrl}/api/templates/upload/$type"
         println("=== 开始上传模板 ===")
         println("上传地址: $url")
@@ -125,6 +164,16 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
     }
 
     fun deleteTemplate(type: String, fileName: String) {
+        checkAndShowDefaultWarning()
+        
+        if (myState.serverUrl == DEFAULT_SERVER_URL && myState.apiKey == DEFAULT_API_KEY) {
+            throw Exception("""
+                |当前使用默认服务器配置，仅具有只读权限。
+                |如需删除模板，请访问：$GITHUB_REPO_URL
+                |按照说明部署自己的服务器。
+            """.trimMargin())
+        }
+        
         val url = "${myState.serverUrl}/api/templates/$type/$fileName"
         println("=== 开始删除模板 ===")
         println("删除地址: $url")
@@ -155,5 +204,9 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
     fun updateServerConfig(serverUrl: String, apiKey: String) {
         myState.serverUrl = serverUrl
         myState.apiKey = apiKey
+        // 如果用户设置了自定义配置，重置警告标记
+        if (serverUrl != DEFAULT_SERVER_URL || apiKey != DEFAULT_API_KEY) {
+            myState.hasShownDefaultWarning = false
+        }
     }
 }
