@@ -3,12 +3,12 @@ package com.wepie.coder.wpcoder.action
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 
 import com.intellij.codeInsight.template.impl.TemplateSettings
-import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.fileChooser.FileChooser
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
+import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.JDOMUtil
@@ -16,7 +16,7 @@ import org.jdom.Element
 import java.io.File
 import java.util.zip.ZipInputStream
 
-class ImportLiveTemplateAction : AnAction() {
+class ImportLiveTemplateAction : DumbAwareAction() {
     fun importTemplateFromFile(project: Project, sourceFile: File) {
         if (!sourceFile.exists()) {
             Messages.showErrorDialog(
@@ -73,7 +73,7 @@ class ImportLiveTemplateAction : AnAction() {
                                         templateElement,
                                         javaClass.classLoader
                                     )
-                                    
+
                                     // 如果已存在同名模板，先删除
                                     val existingTemplate = templateSettings.getTemplate(template.key, groupName)
                                     if (existingTemplate != null) {

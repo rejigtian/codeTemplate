@@ -2,18 +2,19 @@ package com.wepie.coder.wpcoder.action
 
 import com.intellij.ide.fileTemplates.FileTemplateManager
 import com.intellij.ide.fileTemplates.impl.FileTemplateManagerImpl
-import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileChooser.FileChooser
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
+import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.io.FileUtil
 import java.io.File
+import java.util.Properties
 import java.util.zip.ZipFile
 
-class ImportTemplateAction : AnAction() {
+class ImportTemplateAction : DumbAwareAction() {
     companion object {
         fun importTemplateFromFile(project: Project, sourceFile: File) {
             if (!sourceFile.exists()) {

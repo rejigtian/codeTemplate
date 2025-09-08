@@ -10,7 +10,8 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
-import org.json.JSONArray
+import com.google.gson.JsonParser
+import com.google.gson.JsonObject
 import java.io.File
 
 @Service(Service.Level.APP)
@@ -48,16 +49,16 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
             .accept("application/json")
             .connect { request ->
                 val responseText = request.readString()
-                val responseArray = JSONArray(responseText)
-                val result = mutableListOf<TemplateInfo>()
-                for (i in 0 until responseArray.length()) {
-                    val template = responseArray.getJSONObject(i)
-                    result.add(TemplateInfo(
-                        fileName = template.getString("fileName"),
-                        displayName = template.getString("displayName"),
-                        type = template.getString("type")
-                    ))
-                }
+                       val jsonArray = JsonParser.parseString(responseText).asJsonArray
+                       val result = mutableListOf<TemplateInfo>()
+                       for (element in jsonArray) {
+                           val obj = element.asJsonObject
+                           result.add(TemplateInfo(
+                               fileName = obj.get("fileName").asString,
+                               displayName = obj.get("displayName").asString,
+                               type = obj.get("type").asString
+                           ))
+                       }
                 result
             }
     }

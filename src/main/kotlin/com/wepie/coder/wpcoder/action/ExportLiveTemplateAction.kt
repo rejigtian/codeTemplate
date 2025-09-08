@@ -6,6 +6,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.fileChooser.FileChooserFactory
 import com.intellij.openapi.fileChooser.FileSaverDescriptor
+import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.ui.Messages
 import java.io.File
 import java.io.FileOutputStream
@@ -13,7 +14,7 @@ import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-class ExportLiveTemplateAction : AnAction() {
+class ExportLiveTemplateAction : DumbAwareAction() {
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
 

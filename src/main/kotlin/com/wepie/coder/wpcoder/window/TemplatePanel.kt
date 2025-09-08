@@ -19,12 +19,15 @@ import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.fileChooser.FileChooser
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.ui.components.JBTextField
+import com.intellij.ui.components.JBLabel
 import java.awt.GridBagLayout
 import java.awt.GridBagConstraints
 import javax.swing.JLabel
 import javax.swing.JButton
 import javax.swing.JComponent
 import java.io.File
+import java.awt.Color
+import javax.swing.SwingConstants
 
 class TemplatePanel(
     private val project: Project,
@@ -32,6 +35,11 @@ class TemplatePanel(
 ) : JPanel(BorderLayout()) {
     private val templateService = service<TemplateServerService>()
     private val templateList = JBList<TemplateServerService.TemplateInfo>()
+    private val tipLabel = JBLabel("", SwingConstants.CENTER).apply {
+        foreground = Color(153, 153, 153) // 使用灰色
+        isVisible = false
+    }
+    private val contentPanel = JPanel(BorderLayout())
 
     init {
         // 创建列表面板
@@ -44,11 +52,39 @@ class TemplatePanel(
         toolbar.targetComponent = listPanel
         listPanel.add(toolbar.component, BorderLayout.NORTH)
 
-        // 添加到主面板
-        add(listPanel, BorderLayout.CENTER)
+        // 添加提示标签和列表到内容面板
+        contentPanel.add(tipLabel, BorderLayout.NORTH)
+        contentPanel.add(listPanel, BorderLayout.CENTER)
 
-        // 初始加载数据
+        // 添加到主面板
+        add(contentPanel, BorderLayout.CENTER)
+
+        // 初始检查配置并加载数据
+        checkConfigAndLoadData()
+    }
+
+    private fun checkConfigAndLoadData() {
+        val serverUrl = templateService.state.serverUrl
+        val apiKey = templateService.state.apiKey
+
+        if (serverUrl.isBlank() || apiKey.isBlank()) {
+            showTip("请先配置服务器地址和API Key")
+            return
+        }
+
+        hideTip()
         refreshTemplates()
+    }
+
+    private fun showTip(message: String) {
+        tipLabel.text = message
+        tipLabel.isVisible = true
+        templateList.clearSelection()
+        templateList.setListData(emptyArray())
+    }
+
+    private fun hideTip() {
+        tipLabel.isVisible = false
     }
 
     private fun createToolbar(): ActionToolbar {
@@ -97,14 +133,18 @@ class TemplatePanel(
             // 分享到服务器
             add(object : AnAction("Share to Server", "", AllIcons.Actions.Upload) {
                 override fun actionPerformed(e: AnActionEvent) {
-                    uploadTemplate()
+                    if (checkServerConfig()) {
+                        uploadTemplate()
+                    }
                 }
             })
 
             // 从服务器获取
             add(object : AnAction("Get from Server", "", AllIcons.Actions.Download) {
                 override fun actionPerformed(e: AnActionEvent) {
-                    downloadTemplate()
+                    if (checkServerConfig()) {
+                        downloadTemplate()
+                    }
                 }
 
                 override fun update(e: AnActionEvent) {
@@ -115,7 +155,9 @@ class TemplatePanel(
             // 删除模板
             add(object : AnAction("Delete Template", "", AllIcons.Actions.GC) {
                 override fun actionPerformed(e: AnActionEvent) {
-                    deleteTemplate()
+                    if (checkServerConfig()) {
+                        deleteTemplate()
+                    }
                 }
 
                 override fun update(e: AnActionEvent) {
@@ -126,7 +168,7 @@ class TemplatePanel(
             // 刷新
             add(object : AnAction("Refresh", "", AllIcons.Actions.Refresh) {
                 override fun actionPerformed(e: AnActionEvent) {
-                    refreshTemplates()
+                    checkConfigAndLoadData()
                 }
             })
 
@@ -145,6 +187,7 @@ class TemplatePanel(
                             dialog.getServerUrl(),
                             dialog.getApiKey()
                         )
+                        checkConfigAndLoadData()
                     }
                 }
             })
@@ -154,16 +197,30 @@ class TemplatePanel(
             .createActionToolbar("TemplatePanel", actionGroup, true)
     }
 
+    private fun checkServerConfig(): Boolean {
+        val serverUrl = templateService.state.serverUrl
+        val apiKey = templateService.state.apiKey
+
+        if (serverUrl.isBlank() || apiKey.isBlank()) {
+            Messages.showWarningDialog(
+                project,
+                "请先配置服务器地址和API Key",
+                "配置缺失"
+            )
+            return false
+        }
+        return true
+    }
+
     private fun refreshTemplates() {
         try {
             val templates = templateService.getTemplates(templateType)
             templateList.setListData(templates.toTypedArray())
+            if (templates.isEmpty()) {
+                showTip("暂无模板")
+            }
         } catch (e: Exception) {
-            Messages.showErrorDialog(
-                project,
-                "Failed to load templates: ${e.message}",
-                "Error"
-            )
+            showTip("加载失败: ${e.message}")
         }
     }
 
