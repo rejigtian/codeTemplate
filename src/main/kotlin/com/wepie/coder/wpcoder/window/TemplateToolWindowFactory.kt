@@ -19,6 +19,12 @@ class TemplateToolWindowFactory : ToolWindowFactory {
         val fileTemplatePanel = TemplatePanel(project, "file")
         tabbedPane.addTab("文件模板", fileTemplatePanel)
 
+        // 添加 tab 切换监听器
+        tabbedPane.addChangeListener { e ->
+            val selectedPanel = (e.source as JTabbedPane).selectedComponent as? TemplatePanel
+            selectedPanel?.onTabSelected()
+        }
+
         val content = contentFactory.createContent(tabbedPane, "", false)
         toolWindow.contentManager.addContent(content)
     }

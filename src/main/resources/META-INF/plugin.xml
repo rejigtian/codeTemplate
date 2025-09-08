@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <idea-plugin>
     <id>com.wepie.coder.wpcoder</id>
-    <n>WP Template Coder</n>
+    <name>WP Template Coder</name>
     <vendor email="tianruijie@wepie.com" url="https://www.wepie.com">Wepie</vendor>
     <version>1.1.1</version>
     <idea-version since-build="251" until-build="251.*"/>

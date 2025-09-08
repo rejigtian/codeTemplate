@@ -25,9 +25,10 @@ class TemplatePanel(
 ) : JPanel(BorderLayout()) {
     private val templateService = service<TemplateServerService>()
     private val templateList = JBList<TemplateServerService.TemplateInfo>()
-    private val tipLabel = JBLabel("", SwingConstants.CENTER).apply {
-        foreground = Color(153, 153, 153) // 使用灰色
+    private val tipLabel = JBLabel("", SwingConstants.LEFT).apply {
+        foreground = Color(255, 102, 102) // 使用红色
         isVisible = false
+        border = javax.swing.BorderFactory.createEmptyBorder(5, 10, 5, 10) // 添加上下左右边距
     }
     private val contentPanel = JPanel(BorderLayout())
 
@@ -62,7 +63,22 @@ class TemplatePanel(
             return
         }
 
-        hideTip()
+        // 如果使用默认配置，显示提示信息
+        if (templateService.state.serverUrl == TemplateServerService.DEFAULT_SERVER_URL &&
+            templateService.state.apiKey == TemplateServerService.DEFAULT_API_KEY) {
+            tipLabel.text = "<html>当前使用默认开放服务器，仅拥有可读权限。如需完整权限请<a href='${TemplateServerService.GITHUB_REPO_URL}'>部署自己的服务器</a></html>"
+            tipLabel.isVisible = true
+            // 添加点击事件处理
+            tipLabel.cursor = java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR)
+            tipLabel.addMouseListener(object : java.awt.event.MouseAdapter() {
+                override fun mouseClicked(e: java.awt.event.MouseEvent) {
+                    com.intellij.ide.BrowserUtil.browse(TemplateServerService.GITHUB_REPO_URL)
+                }
+            })
+        } else {
+            tipLabel.isVisible = false
+        }
+
         refreshTemplates()
     }
 
@@ -173,10 +189,10 @@ class TemplatePanel(
                         templateService.state.apiKey
                     )
                     if (dialog.showAndGet()) {
-                        templateService.updateServerConfig(
-                            dialog.getServerUrl(),
-                            dialog.getApiKey()
-                        )
+                        val newUrl = dialog.getServerUrl()
+                        val newKey = dialog.getApiKey()
+                        println("Dialog result: url=$newUrl, key=$newKey") // 添加日志
+                        templateService.updateServerConfig(newUrl, newKey)
                         checkConfigAndLoadData()
                     }
                 }
@@ -202,6 +218,10 @@ class TemplatePanel(
         return true
     }
 
+    fun onTabSelected() {
+        checkConfigAndLoadData()
+    }
+
     fun refreshTemplates() {
         // 确保在 EDT 线程中执行 UI 更新
         if (!SwingUtilities.isEventDispatchThread()) {
@@ -212,9 +232,9 @@ class TemplatePanel(
         try {
             val templates = templateService.getTemplates(templateType)
             templateList.setListData(templates.toTypedArray())
-            if (templates.isEmpty()) {
-                showTip("暂无模板")
-            } else {
+            // 如果不是默认配置，隐藏提示信息
+            if (!(templateService.state.serverUrl == TemplateServerService.DEFAULT_SERVER_URL &&
+                templateService.state.apiKey == TemplateServerService.DEFAULT_API_KEY)) {
                 hideTip()
             }
         } catch (e: Exception) {

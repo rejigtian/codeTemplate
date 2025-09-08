@@ -31,7 +31,11 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
         var serverUrl: String = DEFAULT_SERVER_URL,
         var apiKey: String = DEFAULT_API_KEY,
         var hasShownDefaultWarning: Boolean = false  // 添加标记，记录是否显示过提示
-    )
+    ) {
+        override fun toString(): String {
+            return "State(serverUrl='$serverUrl', apiKey='$apiKey', hasShownDefaultWarning=$hasShownDefaultWarning)"
+        }
+    }
 
     data class TemplateInfo(
         val fileName: String,
@@ -43,9 +47,13 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
     private var myState = State()
     private val client = OkHttpClient()
 
-    override fun getState(): State = myState
+    override fun getState(): State {
+        println("Getting state: $myState")
+        return myState
+    }
 
     override fun loadState(state: State) {
+        println("Loading state: $state")
         myState = state
     }
 
@@ -202,11 +210,22 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
     }
 
     fun updateServerConfig(serverUrl: String, apiKey: String) {
-        myState.serverUrl = serverUrl
-        myState.apiKey = apiKey
-        // 如果用户设置了自定义配置，重置警告标记
-        if (serverUrl != DEFAULT_SERVER_URL || apiKey != DEFAULT_API_KEY) {
-            myState.hasShownDefaultWarning = false
-        }
+        println("Updating server config - Current state: url=${myState.serverUrl}, key=${myState.apiKey}")
+        println("New values: url=$serverUrl, key=$apiKey")
+        
+        // 创建新的状态对象
+        val newState = State(
+            serverUrl = serverUrl,
+            apiKey = apiKey,
+            hasShownDefaultWarning = !(serverUrl != DEFAULT_SERVER_URL || apiKey != DEFAULT_API_KEY)
+        )
+        
+        // 使用 loadState 更新状态
+        loadState(newState)
+        
+        // 强制保存状态到磁盘
+        com.intellij.openapi.application.ApplicationManager.getApplication().saveAll()
+        
+        println("Updated state: url=${myState.serverUrl}, key=${myState.apiKey}")
     }
 }

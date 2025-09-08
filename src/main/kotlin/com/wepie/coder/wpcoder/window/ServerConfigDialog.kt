@@ -15,8 +15,8 @@ class ServerConfigDialog(
     private val currentUrl: String,
     private val currentKey: String
 ) : DialogWrapper(project) {
-    private val serverUrlField = JBTextField(currentUrl)
-    private val apiKeyField = JBTextField(currentKey)
+    private val serverUrlField = JBTextField(currentUrl, 30)  // 设置更合适的列数
+    private val apiKeyField = JBTextField(currentKey, 30)     // 设置更合适的列数
 
     init {
         title = "Server Configuration"
@@ -31,6 +31,7 @@ class ServerConfigDialog(
         c.gridx = 0
         c.gridy = 0
         c.anchor = GridBagConstraints.LINE_START
+        c.insets.set(5, 5, 5, 5)  // 添加边距
         panel.add(JLabel("Server URL:"), c)
 
         c.gridx = 1
@@ -55,13 +56,16 @@ class ServerConfigDialog(
     }
 
     override fun doValidate(): ValidationInfo? {
-        if (serverUrlField.text.isBlank()) {
+        val url = serverUrlField.text.trim()
+        val key = apiKeyField.text.trim()
+
+        if (url.isBlank()) {
             return ValidationInfo("Please enter server URL", serverUrlField)
         }
-        if (!serverUrlField.text.startsWith("http://") && !serverUrlField.text.startsWith("https://")) {
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
             return ValidationInfo("Server URL must start with http:// or https://", serverUrlField)
         }
-        if (apiKeyField.text.isBlank()) {
+        if (key.isBlank()) {
             return ValidationInfo("Please enter API key", apiKeyField)
         }
         return null
