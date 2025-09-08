@@ -28,7 +28,8 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
     data class TemplateInfo(
         val fileName: String,
         val displayName: String,
-        val type: String
+        val type: String,
+        val createTime: Long = 0  // 添加创建时间字段
     )
 
     private var myState = State()
@@ -49,17 +50,18 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
             .accept("application/json")
             .connect { request ->
                 val responseText = request.readString()
-                       val jsonArray = JsonParser.parseString(responseText).asJsonArray
-                       val result = mutableListOf<TemplateInfo>()
-                       for (element in jsonArray) {
-                           val obj = element.asJsonObject
-                           result.add(TemplateInfo(
-                               fileName = obj.get("fileName").asString,
-                               displayName = obj.get("displayName").asString,
-                               type = obj.get("type").asString
-                           ))
-                       }
-                result
+                val jsonArray = JsonParser.parseString(responseText).asJsonArray
+                val result = mutableListOf<TemplateInfo>()
+                for (element in jsonArray) {
+                    val obj = element.asJsonObject
+                    result.add(TemplateInfo(
+                        fileName = obj.get("fileName").asString,
+                        displayName = obj.get("displayName").asString,
+                        type = obj.get("type").asString,
+                        createTime = obj.get("createTime")?.asLong ?: 0
+                    ))
+                }
+                result  // 服务端已经排序，这里不需要再排序
             }
     }
 

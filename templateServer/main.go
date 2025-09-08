@@ -7,6 +7,8 @@ import (
     "net/http"
     "os"
     "path/filepath"
+    "sort"
+    "time"
 )
 
 func requireAuth(requiredPerm Permission) gin.HandlerFunc {
@@ -57,16 +59,23 @@ func main() {
         metadataStore.RLock()
         defer metadataStore.RUnlock()
 
-        result := make([]TemplateInfo, 0)
+        // 先收集所有符合条件的模板到一个切片中
+        result := make([]TemplateInfo, 0, len(metadataStore.Templates))
         for _, tpl := range metadataStore.Templates {
             if templateType == "" || tpl.Type == templateType {
                 result = append(result, tpl)
             }
         }
-        // 如果没有模板，返回空数组而不是 null
-        if result == nil {
-            result = make([]TemplateInfo, 0)
-        }
+
+        // 按创建时间倒序排序
+        sort.SliceStable(result, func(i, j int) bool {
+            if result[i].CreateTime != result[j].CreateTime {
+                return result[i].CreateTime > result[j].CreateTime
+            }
+            // 如果创建时间相同，按显示名称排序
+            return result[i].DisplayName < result[j].DisplayName
+        })
+
         c.JSON(http.StatusOK, result)
     })
 
@@ -135,11 +144,12 @@ func main() {
             return
         }
 
-        // 保存元数据
+        // 保存元数据，添加创建时间
         metadataStore.Templates[filename] = TemplateInfo{
             DisplayName: displayName,
             FileName:    filename,
             Type:        templateType,
+            CreateTime:  time.Now().Unix(), // 添加当前时间戳
         }
         metadataStore.Save()
         metadataStore.Unlock()

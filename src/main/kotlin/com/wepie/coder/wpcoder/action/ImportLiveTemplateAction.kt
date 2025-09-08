@@ -1,7 +1,6 @@
 package com.wepie.coder.wpcoder.action
 
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
-
 import com.intellij.codeInsight.template.impl.TemplateSettings
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
@@ -17,6 +16,22 @@ import java.io.File
 import java.util.zip.ZipInputStream
 
 class ImportLiveTemplateAction : DumbAwareAction() {
+    private fun ensureTemplateDirectories(): File {
+        // 获取模板目录
+        val templatesDir = File(PathManager.getConfigPath(), "templates")
+        if (!templatesDir.exists()) {
+            templatesDir.mkdirs()
+        }
+
+        // 创建备份目录
+        val backupDir = File(templatesDir.parentFile, "templates.backup")
+        if (!backupDir.exists()) {
+            backupDir.mkdirs()
+        }
+
+        return templatesDir
+    }
+
     fun importTemplateFromFile(project: Project, sourceFile: File) {
         if (!sourceFile.exists()) {
             Messages.showErrorDialog(
@@ -28,18 +43,12 @@ class ImportLiveTemplateAction : DumbAwareAction() {
         }
 
         try {
-            // 获取模板目录
-            val templatesDir = File(PathManager.getConfigPath(), "templates")
-            if (!templatesDir.exists()) {
-                templatesDir.mkdirs()
-            }
+            // 确保目录存在
+            val templatesDir = ensureTemplateDirectories()
 
             // 备份原有文件
             val files = templatesDir.listFiles() ?: emptyArray()
             val backupDir = File(templatesDir.parentFile, "templates.backup")
-            if (!backupDir.exists()) {
-                backupDir.mkdirs()
-            }
             files.forEach { file ->
                 if (file.isFile && file.extension == "xml") {
                     file.copyTo(File(backupDir, file.name), overwrite = true)
@@ -100,12 +109,17 @@ class ImportLiveTemplateAction : DumbAwareAction() {
                 "导入实时模板"
             )
         } catch (e: Exception) {
+            // 确保目录存在，即使发生错误
+            ensureTemplateDirectories()
             throw e
         }
     }
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
+
+        // 在选择文件前就确保目录存在
+        ensureTemplateDirectories()
 
         val descriptor = FileChooserDescriptor(
             true,

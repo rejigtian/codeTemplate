@@ -14,20 +14,10 @@ import javax.swing.JPanel
 import javax.swing.DefaultListCellRenderer
 import java.awt.Component
 import javax.swing.JList
-import com.intellij.openapi.ui.DialogWrapper
-import com.intellij.openapi.ui.ValidationInfo
-import com.intellij.openapi.fileChooser.FileChooser
-import com.intellij.openapi.fileChooser.FileChooserDescriptor
-import com.intellij.ui.components.JBTextField
 import com.intellij.ui.components.JBLabel
-import java.awt.GridBagLayout
-import java.awt.GridBagConstraints
-import javax.swing.JLabel
-import javax.swing.JButton
-import javax.swing.JComponent
-import java.io.File
 import java.awt.Color
 import javax.swing.SwingConstants
+import javax.swing.SwingUtilities
 
 class TemplatePanel(
     private val project: Project,
@@ -212,12 +202,20 @@ class TemplatePanel(
         return true
     }
 
-    private fun refreshTemplates() {
+    fun refreshTemplates() {
+        // 确保在 EDT 线程中执行 UI 更新
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater { refreshTemplates() }
+            return
+        }
+
         try {
             val templates = templateService.getTemplates(templateType)
             templateList.setListData(templates.toTypedArray())
             if (templates.isEmpty()) {
                 showTip("暂无模板")
+            } else {
+                hideTip()
             }
         } catch (e: Exception) {
             showTip("加载失败: ${e.message}")
@@ -348,85 +346,6 @@ class TemplatePanel(
             )
         }
     }
-}
-
-private class UploadTemplateDialog(private val project: Project) : DialogWrapper(project) {
-    private val displayNameField = JBTextField()
-    private var selectedFile: File? = null
-    private val filePathLabel = JLabel("No file selected")
-
-    init {
-        title = "Upload Template"
-        init()
-    }
-
-    override fun createCenterPanel(): JComponent {
-        val panel = JPanel(GridBagLayout())
-        val c = GridBagConstraints()
-
-        // 显示名称
-        c.gridx = 0
-        c.gridy = 0
-        c.anchor = GridBagConstraints.LINE_START
-        panel.add(JLabel("Display Name:"), c)
-
-        c.gridx = 1
-        c.gridy = 0
-        c.fill = GridBagConstraints.HORIZONTAL
-        c.weightx = 1.0
-        panel.add(displayNameField, c)
-
-        // 文件选择
-        c.gridx = 0
-        c.gridy = 1
-        c.weightx = 0.0
-        panel.add(JLabel("File:"), c)
-
-        c.gridx = 1
-        c.gridy = 1
-        c.fill = GridBagConstraints.HORIZONTAL
-        panel.add(filePathLabel, c)
-
-        c.gridx = 2
-        c.gridy = 1
-        c.fill = GridBagConstraints.NONE
-        panel.add(JButton("Browse...").apply {
-            addActionListener {
-                val descriptor = FileChooserDescriptor(
-                    true,
-                    false,
-                    false,
-                    false,
-                    false,
-                    false
-                ).apply {
-                    title = "Select Template File"
-                    description = "Choose a ZIP file containing templates"
-                    withFileFilter { it.extension?.lowercase() == "zip" }
-                }
-
-                FileChooser.chooseFile(descriptor, project, null)?.let {
-                    selectedFile = it.toNioPath().toFile()
-                    filePathLabel.text = selectedFile?.name ?: "No file selected"
-                }
-            }
-        }, c)
-
-        return panel
-    }
-
-    override fun doValidate(): ValidationInfo? {
-        if (displayNameField.text.isBlank()) {
-            return ValidationInfo("Please enter a display name", displayNameField)
-        }
-        if (selectedFile == null) {
-            return ValidationInfo("Please select a file")
-        }
-        return null
-    }
-
-    fun getDisplayName(): String = displayNameField.text.trim()
-    fun getSelectedFile(): File = selectedFile!!
 }
 
 private class TemplateCellRenderer : DefaultListCellRenderer() {

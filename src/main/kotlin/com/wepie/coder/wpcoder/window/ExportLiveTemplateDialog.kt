@@ -12,8 +12,8 @@ import java.awt.BorderLayout
 import java.awt.Dimension
 import java.io.File
 import javax.swing.*
-import javax.swing.tree.DefaultTreeModel
 import javax.swing.event.ChangeEvent
+import javax.swing.tree.DefaultTreeModel
 import javax.swing.tree.TreePath
 
 class ExportLiveTemplateDialog(
@@ -122,6 +122,7 @@ class ExportLiveTemplateDialog(
 
         (tree.model as DefaultTreeModel).reload()
         expandAll()
+        setAllNodesSelected(true)
     }
 
     private fun expandAll() {
@@ -152,10 +153,7 @@ class ExportLiveTemplateDialog(
 
     private fun setAllNodesSelected(selected: Boolean) {
         fun setNodeSelected(node: CheckedTreeNode) {
-            // 只设置文件节点的选中状态
-            if (node.userObject is FileInfo) {
-                node.isChecked = selected
-            }
+            node.isChecked = selected
             for (i in 0 until node.childCount) {
                 setNodeSelected(node.getChildAt(i) as CheckedTreeNode)
             }
