@@ -44,7 +44,7 @@ class ImportTemplateAction : DumbAwareAction() {
                                     // 第一步：解压所有文件
                                     zip.entries().asSequence().forEach { entry ->
                                         if (!entry.isDirectory) {
-                                            val tempFile = File(tempDir, entry.name)
+                                            val tempFile = File(tempDir, entry.name.substringAfter("templates/"))
                                             FileUtil.createParentDirs(tempFile)
                                             zip.getInputStream(entry).use { input ->
                                                 tempFile.outputStream().use { output ->
@@ -64,17 +64,17 @@ class ImportTemplateAction : DumbAwareAction() {
                                     tempDir.walk()
                                         .filter { it.extension == "properties" }
                                         .forEach { propFile ->
-                                            val properties = java.util.Properties()
+                                            val properties = Properties()
                                             propFile.inputStream().use { properties.load(it) }
                                             
-                                            val name = properties.getProperty("name")
-                                            val extension = properties.getProperty("extension")
-                                            val fileName = properties.getProperty("fileName")
-                                            val reformat = properties.getProperty("reformat", "true").toBoolean()
-                                            val liveTemplateEnabled = properties.getProperty("liveTemplateEnabled", "false").toBoolean()
+                                            val name = properties.getProperty("NAME")
+                                            val extension = properties.getProperty("EXTENSION")
+                                            val fileName = properties.getProperty("FILENAME")
+                                            val reformat = properties.getProperty("REFORMAT", "true").toBoolean()
+                                            val liveTemplateEnabled = properties.getProperty("LIVE_TEMPLATE_ENABLED", "false").toBoolean()
                                             
                                             if (name != null && extension != null) {
-                                                val contentFile = File(tempDir, "$name.$extension")
+                                                val contentFile = File(tempDir, "$name.content")
                                                 println("Looking for content file: ${contentFile.absolutePath}")
                                                 
                                                 if (contentFile.exists()) {
