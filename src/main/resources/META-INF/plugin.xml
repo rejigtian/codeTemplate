@@ -1,11 +1,20 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <idea-plugin>
     <id>com.wepie.coder.wpcoder</id>
-    <name>WP Template Coder</name>
+    <n>WP Template Coder</n>
     <vendor email="tianruijie@wepie.com" url="https://www.wepie.com">Wepie</vendor>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
     <idea-version since-build="251" until-build="251.*"/>
     <change-notes><![CDATA[
+        <h2>1.1.1</h2>
+        <ul>
+            <li>Added selective export feature for templates</li>
+            <li>Added quick share after export feature</li>
+            <li>Improved template server stability</li>
+            <li>Added Git version control for template storage</li>
+            <li>Fixed template list sorting by creation time</li>
+            <li>Improved error messages and user feedback</li>
+        </ul>
         <h2>1.1.0</h2>
         <ul>
             <li>Added template sharing feature with remote server</li>
@@ -32,6 +41,8 @@
                     <li>Quick access to template settings</li>
                     <li>Import/Export templates to/from files</li>
                     <li>Support both File Templates and Live Templates</li>
+                    <li>Selective export with template preview</li>
+                    <li>Quick share after successful export</li>
                 </ul>
             </li>
             <li><b>Template Sharing</b>
@@ -39,6 +50,8 @@
                     <li>Share templates with team members via remote server</li>
                     <li>Role-based access control (Admin/Writer/Reader)</li>
                     <li>Easy-to-use server configuration</li>
+                    <li>Git version control for template history</li>
+                    <li>Sorted template list by creation time</li>
                 </ul>
             </li>
             <li><b>User Interface</b>
@@ -46,6 +59,7 @@
                     <li>Intuitive tool window with organized toolbar</li>
                     <li>Separate tabs for File Templates and Live Templates</li>
                     <li>Clear visual feedback for all operations</li>
+                    <li>Improved error messages and user guidance</li>
                 </ul>
             </li>
         </ul>
