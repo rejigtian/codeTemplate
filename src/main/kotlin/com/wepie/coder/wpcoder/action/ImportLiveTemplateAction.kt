@@ -80,7 +80,7 @@ class ImportLiveTemplateAction : DumbAwareAction() {
                                     val template = TemplateSettings.readTemplateFromElement(
                                         groupName,
                                         templateElement,
-                                        javaClass.classLoader
+                                        javaClass.classLoader,
                                     )
 
                                     // 如果已存在同名模板，先删除

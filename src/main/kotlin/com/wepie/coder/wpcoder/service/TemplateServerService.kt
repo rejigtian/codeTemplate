@@ -224,7 +224,7 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
         loadState(newState)
         
         // 强制保存状态到磁盘
-        com.intellij.openapi.application.ApplicationManager.getApplication().saveAll()
+        com.intellij.openapi.application.ApplicationManager.getApplication().saveSettings()
         
         println("Updated state: url=${myState.serverUrl}, key=${myState.apiKey}")
     }

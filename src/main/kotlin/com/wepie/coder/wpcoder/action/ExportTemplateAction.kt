@@ -1,6 +1,7 @@
+@file:Suppress("DialogTitleCapitalization")
+
 package com.wepie.coder.wpcoder.action
 
-import com.intellij.ide.fileTemplates.FileTemplate
 import com.intellij.ide.fileTemplates.FileTemplateManager
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.components.service
@@ -23,7 +24,6 @@ import java.awt.Dimension
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.io.File
-import java.io.FileOutputStream
 import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -33,7 +33,7 @@ import javax.swing.JPanel
 
 class ExportTemplateAction : DumbAwareAction() {
     private class ShareDialog(
-        private val project: Project
+        project: Project
     ) : DialogWrapper(project) {
         private val displayNameField = JBTextField().apply {
             preferredSize = Dimension(300, 30)
@@ -83,7 +83,7 @@ class ExportTemplateAction : DumbAwareAction() {
             return null
         }
 
-        fun getDisplayName() = displayNameField.text
+        fun getDisplayName(): String = displayNameField.text
     }
 
     override fun actionPerformed(e: AnActionEvent) {

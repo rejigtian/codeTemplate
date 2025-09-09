@@ -102,11 +102,12 @@ class TemplatePanel(
                 AllIcons.General.Settings
             ) {
                 override fun actionPerformed(e: AnActionEvent) {
-                    if (templateType == "live") {
-                        LiveTemplateSettingsAction().actionPerformed(e)
+                    val actionId = if (templateType == "live") {
+                        "WPCoder.LiveTemplateSettings"
                     } else {
-                        FileTemplateSettingsAction().actionPerformed(e)
+                        "WPCoder.FileTemplateSettings"
                     }
+                    ActionManager.getInstance().getAction(actionId)?.actionPerformed(e)
                 }
             })
 
@@ -115,22 +116,24 @@ class TemplatePanel(
             // 本地导出
             add(object : AnAction("Export to File", "", AllIcons.Actions.MenuSaveall) {
                 override fun actionPerformed(e: AnActionEvent) {
-                    if (templateType == "live") {
-                        ExportLiveTemplateAction().actionPerformed(e)
+                    val actionId = if (templateType == "live") {
+                        "WPCoder.ExportLiveTemplate"
                     } else {
-                        ExportTemplateAction().actionPerformed(e)
+                        "WPCoder.ExportTemplate"
                     }
+                    ActionManager.getInstance().getAction(actionId)?.actionPerformed(e)
                 }
             })
 
             // 本地导入
             add(object : AnAction("Import from File", "", AllIcons.Actions.MenuOpen) {
                 override fun actionPerformed(e: AnActionEvent) {
-                    if (templateType == "live") {
-                        ImportLiveTemplateAction().actionPerformed(e)
+                    val actionId = if (templateType == "live") {
+                        "WPCoder.ImportLiveTemplate"
                     } else {
-                        ImportTemplateAction().actionPerformed(e)
+                        "WPCoder.ImportTemplate"
                     }
+                    ActionManager.getInstance().getAction(actionId)?.actionPerformed(e)
                 }
             })
 
