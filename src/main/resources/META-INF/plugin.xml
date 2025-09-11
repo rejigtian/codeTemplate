@@ -3,10 +3,10 @@
     <id>com.wepie.coder.wpcoder</id>
     <name>WP Template Coder</name>
     <vendor email="tianruijie@wepie.com" url="https://www.wepie.com">Wepie</vendor>
-    <version>1.1.1</version>
+    <version>1.1.2</version>
     <idea-version since-build="251" until-build="251.*"/>
     <change-notes><![CDATA[
-        <h2>1.1.1</h2>
+        <h2>1.1.2</h2>
         <ul>
             <li>Added selective export feature for templates</li>
             <li>Added quick share after export feature</li>
