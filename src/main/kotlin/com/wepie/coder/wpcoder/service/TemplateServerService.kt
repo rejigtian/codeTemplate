@@ -22,7 +22,7 @@ import java.io.File
 )
 class TemplateServerService : PersistentStateComponent<TemplateServerService.State> {
     companion object {
-        const val DEFAULT_SERVER_URL = "http://124.222.104.87:8080"
+        const val DEFAULT_SERVER_URL = "http://coder.dreamtreasure.cn"
         const val DEFAULT_API_KEY = "4EE488BE0C1F4C2FA58A1040F1D8251D"
         const val GITHUB_REPO_URL = "https://github.com/rejigtian/codeTemplateServer"
     }
