@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.wepie.coder"
-version = "1.1.4"
+version = "1.1.5"
 
 repositories {
     mavenCentral()
@@ -50,7 +50,7 @@ intellijPlatform {
     buildSearchableOptions.set(false)
     pluginConfiguration {
         ideaVersion {
-            sinceBuild.set("251")
+            sinceBuild.set("243")
             untilBuild.set(provider { null })
         }
     }

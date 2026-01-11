@@ -3,9 +3,15 @@
     <id>com.wepie.coder.wpcoder</id>
     <name>WP Template Coder</name>
     <vendor email="tianruijie@wepie.com" url="https://www.wepie.com">Wepie</vendor>
-    <version>1.1.4</version>
-    <idea-version since-build="251"/>
+    <version>1.1.5</version>
+    <idea-version since-build="243"/>
     <change-notes><![CDATA[
+        <h2>1.1.5</h2>
+        <ul>
+            <li>Extended version compatibility to support IntelliJ Platform 243 and above</li>
+            <li>Added support for IC-243.24978.46 and later versions</li>
+            <li>Removed upper version limit for better future compatibility</li>
+        </ul>
         <h2>1.1.2</h2>
         <ul>
             <li>Added selective export feature for templates</li>
