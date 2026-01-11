@@ -11,6 +11,9 @@
             <li>Extended version compatibility to support IntelliJ Platform 243 and above</li>
             <li>Added support for IC-243.24978.46 and later versions</li>
             <li>Removed upper version limit for better future compatibility</li>
+            <li>Removed unnecessary dependencies (Android, Kotlin, Java plugins) for better compatibility</li>
+            <li>Plugin now works with all IntelliJ Platform IDEs, including HarmonyOS DevEco Studio</li>
+            <li>Reduced plugin size and improved loading performance</li>
         </ul>
         <h2>1.1.2</h2>
         <ul>
