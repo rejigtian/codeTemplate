@@ -3,9 +3,19 @@
     <id>com.wepie.coder.wpcoder</id>
     <name>WP Template Coder</name>
     <vendor email="tianruijie@wepie.com" url="https://www.wepie.com">Wepie</vendor>
-    <version>1.1.5</version>
+    <version>1.1.6</version>
     <idea-version since-build="243"/>
     <change-notes><![CDATA[
+        <h2>1.1.6</h2>
+        <ul>
+            <li>Integrated Local MCP (Model Context Protocol) service for AI assistance</li>
+            <li>Exposed tools: list_file_templates, get_file_template, list_live_templates, get_live_template</li>
+            <li>Added MCP toggle and port configuration in settings</li>
+            <li>Added easy configuration copy for AI tools like Cursor and Claude</li>
+            <li>Enhanced template metadata (descriptions, extensions) for better AI judgment</li>
+            <li>Added automatic MCP server recovery on IDE startup</li>
+            <li>Improved port conflict handling for multiple IDE windows</li>
+        </ul>
         <h2>1.1.5</h2>
         <ul>
             <li>Extended version compatibility to support IntelliJ Platform 243 and above</li>
@@ -108,9 +118,8 @@
             canCloseContents="false"
             order="last"/>
 
-        <!-- 注册服务 -->
-        <applicationService
-            serviceImplementation="com.wepie.coder.wpcoder.service.TemplateServerService"/>
+        <!-- 注册启动活动 -->
+        <postStartupActivity implementation="com.wepie.coder.wpcoder.mcp.MCPStartupActivity"/>
     </extensions>
 
     <actions>

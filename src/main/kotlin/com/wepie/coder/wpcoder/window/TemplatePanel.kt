@@ -184,18 +184,22 @@ class TemplatePanel(
             addSeparator()
 
             // 服务器配置
-            add(object : AnAction("Server Settings", "", AllIcons.General.Web) {
+            add(object : AnAction("Settings", "", AllIcons.General.Web) {
                 override fun actionPerformed(e: AnActionEvent) {
                     val dialog = ServerConfigDialog(
                         project,
                         templateService.state.serverUrl,
-                        templateService.state.apiKey
+                        templateService.state.apiKey,
+                        templateService.state.mcpEnabled,
+                        templateService.state.mcpPort
                     )
                     if (dialog.showAndGet()) {
                         val newUrl = dialog.getServerUrl()
                         val newKey = dialog.getApiKey()
-                        println("Dialog result: url=$newUrl, key=$newKey") // 添加日志
-                        templateService.updateServerConfig(newUrl, newKey)
+                        val newMcpEnabled = dialog.isMcpEnabled()
+                        val newMcpPort = dialog.getMcpPort()
+                        println("Dialog result: url=$newUrl, key=$newKey, mcpEnabled=$newMcpEnabled, mcpPort=$newMcpPort")
+                        templateService.updateServerConfig(newUrl, newKey, newMcpEnabled, newMcpPort)
                         checkConfigAndLoadData()
                     }
                 }

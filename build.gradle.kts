@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.wepie.coder"
-version = "1.1.5"
+version = "1.1.6"
 
 repositories {
     mavenCentral()
@@ -24,6 +24,7 @@ repositories {
 // Configure IntelliJ Platform Gradle Plugin
 dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.google.code.gson:gson:2.10.1")
     
     intellijPlatform {
         create("IC", "2025.1")//不允许cursor修改这行代码

@@ -30,7 +30,9 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
     data class State(
         var serverUrl: String = DEFAULT_SERVER_URL,
         var apiKey: String = DEFAULT_API_KEY,
-        var hasShownDefaultWarning: Boolean = false  // 添加标记，记录是否显示过提示
+        var hasShownDefaultWarning: Boolean = false,  // 添加标记，记录是否显示过提示
+        var mcpEnabled: Boolean = false,
+        var mcpPort: Int = 12345
     ) {
         override fun toString(): String {
             return "State(serverUrl='$serverUrl', apiKey='$apiKey', hasShownDefaultWarning=$hasShownDefaultWarning)"
@@ -209,23 +211,22 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
         }
     }
 
-    fun updateServerConfig(serverUrl: String, apiKey: String) {
-        println("Updating server config - Current state: url=${myState.serverUrl}, key=${myState.apiKey}")
-        println("New values: url=$serverUrl, key=$apiKey")
+    fun updateServerConfig(serverUrl: String, apiKey: String, mcpEnabled: Boolean = myState.mcpEnabled, mcpPort: Int = myState.mcpPort) {
+        println("Updating server config - Current state: url=${myState.serverUrl}, key=${myState.apiKey}, mcpEnabled=${myState.mcpEnabled}, mcpPort=${myState.mcpPort}")
+        println("New values: url=$serverUrl, key=$apiKey, mcpEnabled=$mcpEnabled, mcpPort=$mcpPort")
         
-        // 创建新的状态对象
-        val newState = State(
-            serverUrl = serverUrl,
-            apiKey = apiKey,
-            hasShownDefaultWarning = !(serverUrl != DEFAULT_SERVER_URL || apiKey != DEFAULT_API_KEY)
-        )
-        
-        // 使用 loadState 更新状态
-        loadState(newState)
+        myState.serverUrl = serverUrl
+        myState.apiKey = apiKey
+        myState.hasShownDefaultWarning = !(serverUrl != DEFAULT_SERVER_URL || apiKey != DEFAULT_API_KEY)
+        myState.mcpEnabled = mcpEnabled
+        myState.mcpPort = mcpPort
         
         // 强制保存状态到磁盘
         com.intellij.openapi.application.ApplicationManager.getApplication().saveSettings()
         
-        println("Updated state: url=${myState.serverUrl}, key=${myState.apiKey}")
+        // 更新 MCP 服务器状态
+        com.intellij.openapi.components.service<com.wepie.coder.wpcoder.mcp.MCPServerService>().updateServerState()
+        
+        println("Updated state: url=${myState.serverUrl}, key=${myState.apiKey}, mcpEnabled=${myState.mcpEnabled}")
     }
 }
