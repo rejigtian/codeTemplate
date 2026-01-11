@@ -38,7 +38,7 @@
         </ul>
     ]]></change-notes>
     <description><![CDATA[
-        Template management plugin for Android Studio with sharing capabilities.<br>
+        Template management plugin for IntelliJ Platform IDEs with sharing capabilities.<br>
         <br>
         Features:
         <ul>
@@ -92,13 +92,6 @@
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
-    <depends>com.intellij.modules.java</depends>
-    <depends>org.jetbrains.kotlin</depends>
-    <depends>org.jetbrains.android</depends>
-
-    <extensions defaultExtensionNs="org.jetbrains.kotlin">
-        <supportsKotlinPluginMode supportsK2="true" />
-    </extensions>
     
     <resource-bundle>messages.WPCoderBundle</resource-bundle>
 

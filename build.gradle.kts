@@ -29,10 +29,7 @@ dependencies {
         create("IC", "2025.1")//不允许cursor修改这行代码
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
 
-        // Add required plugin dependencies
-        bundledPlugin("com.intellij.java")
-        bundledPlugin("org.jetbrains.kotlin")
-        plugin("org.jetbrains.android:251.23774.435")
+        // No additional plugin dependencies required
     }
 }
 
