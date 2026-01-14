@@ -29,6 +29,15 @@ class TemplatePanel(
         foreground = Color(255, 102, 102) // 使用红色
         isVisible = false
         border = javax.swing.BorderFactory.createEmptyBorder(5, 10, 5, 10) // 添加上下左右边距
+        // 添加点击事件处理
+        cursor = java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR)
+        addMouseListener(object : java.awt.event.MouseAdapter() {
+            override fun mouseClicked(e: java.awt.event.MouseEvent) {
+                if (isVisible && text.contains(TemplateServerService.GITHUB_REPO_URL)) {
+                    com.intellij.ide.BrowserUtil.browse(TemplateServerService.GITHUB_REPO_URL)
+                }
+            }
+        })
     }
     private val contentPanel = JPanel(BorderLayout())
 
@@ -68,13 +77,6 @@ class TemplatePanel(
             templateService.state.apiKey == TemplateServerService.DEFAULT_API_KEY) {
             tipLabel.text = "<html>当前使用默认开放服务器，仅拥有可读权限。如需完整权限请<a href='${TemplateServerService.GITHUB_REPO_URL}'>部署自己的服务器</a></html>"
             tipLabel.isVisible = true
-            // 添加点击事件处理
-            tipLabel.cursor = java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR)
-            tipLabel.addMouseListener(object : java.awt.event.MouseAdapter() {
-                override fun mouseClicked(e: java.awt.event.MouseEvent) {
-                    com.intellij.ide.BrowserUtil.browse(TemplateServerService.GITHUB_REPO_URL)
-                }
-            })
         } else {
             tipLabel.isVisible = false
         }
@@ -83,14 +85,20 @@ class TemplatePanel(
     }
 
     private fun showTip(message: String) {
-        tipLabel.text = message
-        tipLabel.isVisible = true
-        templateList.clearSelection()
-        templateList.setListData(emptyArray())
+        SwingUtilities.invokeLater {
+            tipLabel.text = message
+            tipLabel.isVisible = true
+            if (message != "正在加载模板...") {
+                templateList.clearSelection()
+                templateList.setListData(emptyArray())
+            }
+        }
     }
 
     private fun hideTip() {
-        tipLabel.isVisible = false
+        SwingUtilities.invokeLater {
+            tipLabel.isVisible = false
+        }
     }
 
     private fun createToolbar(): ActionToolbar {
@@ -230,22 +238,31 @@ class TemplatePanel(
     }
 
     fun refreshTemplates() {
-        // 显示加载状态
-        showTip("正在加载模板...")
+        // 如果当前没有数据，显示加载状态；如果有数据，静默刷新
+        if (templateList.model.size == 0) {
+            showTip("正在加载模板...")
+        }
         
         // 使用异步方法在后台线程执行网络请求
-        templateService.getTemplatesAsync(templateType) { templates ->
+        templateService.getTemplatesAsync(templateType) { result ->
             // 这个回调已经在 EDT 线程中执行
-            try {
-                templateList.setListData(templates.toTypedArray())
-                // 如果不是默认配置，隐藏提示信息
-                if (!(templateService.state.serverUrl == TemplateServerService.DEFAULT_SERVER_URL &&
-                    templateService.state.apiKey == TemplateServerService.DEFAULT_API_KEY)) {
-                    hideTip()
-                } else if (templates.isEmpty()) {
-                    showTip("暂无模板数据")
+            result.onSuccess { templates ->
+                try {
+                    templateList.setListData(templates.toTypedArray())
+                    // 如果是默认配置，显示默认配置的提示
+                    if (templateService.state.serverUrl == TemplateServerService.DEFAULT_SERVER_URL &&
+                        templateService.state.apiKey == TemplateServerService.DEFAULT_API_KEY) {
+                        tipLabel.text = "<html>当前使用默认开放服务器，仅拥有可读权限。如需完整权限请<a href='${TemplateServerService.GITHUB_REPO_URL}'>部署自己的服务器</a></html>"
+                        tipLabel.isVisible = true
+                    } else if (templates.isEmpty()) {
+                        showTip("暂无模板数据")
+                    } else {
+                        hideTip()
+                    }
+                } catch (e: Exception) {
+                    showTip("数据处理失败: ${e.message}")
                 }
-            } catch (e: Exception) {
+            }.onFailure { e ->
                 showTip("加载失败: ${e.message}")
             }
         }

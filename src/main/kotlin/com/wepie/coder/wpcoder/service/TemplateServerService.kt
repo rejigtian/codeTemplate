@@ -138,7 +138,7 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
     /**
      * 异步获取模板列表（推荐使用）
      */
-    fun getTemplatesAsync(type: String? = null, callback: (List<TemplateInfo>) -> Unit) {
+    fun getTemplatesAsync(type: String? = null, callback: (Result<List<TemplateInfo>>) -> Unit) {
         checkAndShowDefaultWarning()
         
         ApplicationManager.getApplication().executeOnPooledThread {
@@ -165,11 +165,11 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
                         result
                     }
                 ApplicationManager.getApplication().invokeLater {
-                    callback(templates)
+                    callback(Result.success(templates))
                 }
             } catch (e: Exception) {
                 ApplicationManager.getApplication().invokeLater {
-                    callback(emptyList())
+                    callback(Result.failure(e))
                 }
             }
         }

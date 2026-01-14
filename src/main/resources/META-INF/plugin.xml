@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <idea-plugin>
     <id>com.wepie.coder.wpcoder</id>
-    <name>WP Template Coder</name>
+    <name>WP Template Coder: MCP Support</name>
     <vendor email="tianruijie@wepie.com" url="https://www.wepie.com">Wepie</vendor>
     <version>1.1.7</version>
-    <idea-version since-build="243"/>
     <change-notes><![CDATA[
         <h2>1.1.7</h2>
         <ul>
+            <li>优化模板列表加载逻辑：在已有数据时进行静默刷新，消除界面闪烁感</li>
+            <li>修复在提示“使用默认开放服务器”时，来回切换 Tab 导致点击链接打开多个网页的 Bug</li>
+            <li>优化 UI 状态维护，确保加载过程中界面显示更平滑</li>
+            <li>改进异常处理，确保在网络错误时能正确显示提示信息</li>
             <li>Fixed network request issue in EDT thread for IntelliJ Platform 243.* compatibility</li>
             <li>All network requests now execute in background threads to prevent UI blocking</li>
             <li>Added asynchronous template loading with proper thread management</li>
@@ -59,7 +62,8 @@
         </ul>
     ]]></change-notes>
     <description><![CDATA[
-        Template management plugin for IntelliJ Platform IDEs with sharing capabilities.<br>
+        Template management plugin for IntelliJ Platform IDEs with sharing capabilities and AI integration.<br>
+        由微派会玩开发一款代码模版插件工具，支持文件模版和代码模版的管理，统一项目代码规范与风格，提升效率，以及MCP服务的提供，协助AI写出更规范的代码<br>
         <br>
         Features:
         <ul>
@@ -81,6 +85,15 @@
                     <li>Sorted template list by creation time</li>
                 </ul>
             </li>
+            <li><b>AI Integration (MCP Support)</b>
+                <ul>
+                    <li>Local MCP (Model Context Protocol) server for AI assistance</li>
+                    <li>AI can query file templates and live templates to maintain code style consistency</li>
+                    <li>Easy configuration for Cursor, Claude Desktop, and other MCP-compatible AI tools</li>
+                    <li>Automatic server recovery on IDE startup</li>
+                    <li>Enhanced template metadata for better AI judgment</li>
+                </ul>
+            </li>
             <li><b>User Interface</b>
                 <ul>
                     <li>Intuitive tool window with organized toolbar</li>
@@ -88,13 +101,17 @@
                     <li>Clear visual feedback for all operations</li>
                     <li>Improved error messages and user guidance</li>
                     <li>Asynchronous template loading for better performance</li>
+                    <li>Silent refresh to reduce flickering</li>
+                    <li>Loading status indicators and improved error messages</li>
                 </ul>
             </li>
-            <li><b>Compatibility</b>
+            <li><b>Compatibility & Performance</b>
                 <ul>
                     <li>Full support for IntelliJ Platform 243 and above</li>
-                    <li>Thread-safe network operations</li>
-                    <li>Compatible with all IntelliJ Platform IDEs</li>
+                    <li>Thread-safe network operations (fixed EDT thread issues)</li>
+                    <li>Compatible with all IntelliJ Platform IDEs (IntelliJ IDEA, Android Studio, PyCharm, WebStorm, CLion, etc.)</li>
+                    <li>Optimized for older IntelliJ Platform versions</li>
+                    <li>No unnecessary dependencies - lightweight and fast</li>
                 </ul>
             </li>
         </ul>
@@ -110,6 +127,7 @@
                     <li>Configure server settings (requires API key)</li>
                 </ul>
             </li>
+            <li>Enable MCP server in settings to allow AI tools to access your templates</li>
         </ul>
         <br>
         Server Access Levels:
@@ -117,6 +135,14 @@
             <li>Admin: Full access (upload, download, delete)</li>
             <li>Writer: Can upload and download templates</li>
             <li>Reader: Can only download templates</li>
+        </ul>
+        <br>
+        AI Integration:
+        <ul>
+            <li>Enable MCP server in plugin settings</li>
+            <li>Copy the provided configuration to your AI tool's MCP config file</li>
+            <li>AI can now query your templates to maintain consistent code style</li>
+            <li>Supports Cursor, Claude Desktop, and other MCP-compatible tools</li>
         </ul>
     ]]></description>
 
