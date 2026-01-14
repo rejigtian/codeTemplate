@@ -141,14 +141,13 @@ class ExportTemplateDialog(
     override fun createCenterPanel(): JComponent {
         val panel = JPanel(BorderLayout())
         
-        // 设置树的大小
-        tree.preferredSize = Dimension(400, 300)
-        
         // 添加全选复选框
         panel.add(selectAllCheckBox, BorderLayout.NORTH)
         
         // 添加带滚动条的树
-        panel.add(JBScrollPane(tree), BorderLayout.CENTER)
+        val scrollPane = JBScrollPane(tree)
+        scrollPane.preferredSize = Dimension(500, 400)
+        panel.add(scrollPane, BorderLayout.CENTER)
         
         return panel
     }

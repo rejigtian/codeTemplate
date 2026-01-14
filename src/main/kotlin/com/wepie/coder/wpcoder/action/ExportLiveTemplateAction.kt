@@ -4,6 +4,8 @@ import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.components.service
+import com.intellij.openapi.fileChooser.FileChooser
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.fileChooser.FileChooserFactory
 import com.intellij.openapi.fileChooser.FileSaverDescriptor
 import com.intellij.openapi.project.DumbAwareAction
@@ -88,6 +90,50 @@ class ExportLiveTemplateAction : DumbAwareAction() {
         fun getDisplayName() = displayNameField.text
     }
 
+    private class SaveFileDialog(
+        project: com.intellij.openapi.project.Project,
+        defaultName: String
+    ) : DialogWrapper(project) {
+        private val fileNameField = JBTextField(defaultName).apply {
+            preferredSize = Dimension(300, 30)
+        }
+
+        init {
+            title = "保存导出文件"
+            init()
+        }
+
+        override fun createCenterPanel(): JComponent {
+            val panel = JPanel(GridBagLayout())
+            panel.border = JBUI.Borders.empty(10)
+            val gbc = GridBagConstraints().apply {
+                gridx = 0; gridy = 0; anchor = GridBagConstraints.WEST; insets = Insets(5, 5, 5, 5)
+            }
+            panel.add(com.intellij.ui.components.JBLabel("文件名:"), gbc)
+            gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0
+            panel.add(fileNameField, gbc)
+            
+            gbc.gridx = 1; gbc.gridy = 1; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0.0
+            panel.add(com.intellij.ui.components.JBLabel(".zip").apply {
+                foreground = JBUI.CurrentTheme.ContextHelp.FOREGROUND
+            }, gbc)
+            
+            return panel
+        }
+
+        override fun doValidate(): ValidationInfo? {
+            val text = fileNameField.text
+            if (text.isBlank()) return ValidationInfo("请输入文件名", fileNameField)
+            if (text.contains("/") || text.contains("\\")) return ValidationInfo("文件名包含非法字符", fileNameField)
+            return null
+        }
+
+        fun getFullFileName(): String {
+            val name = fileNameField.text.trim()
+            return if (name.lowercase().endsWith(".zip")) name else "$name.zip"
+        }
+    }
+
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
 
@@ -102,9 +148,9 @@ class ExportLiveTemplateAction : DumbAwareAction() {
             return
         }
 
-        // 获取所有XML文件
+        // 获取所有XML文件，并过滤掉系统自带的模板组
         val xmlFiles = templatesDir.listFiles()?.filter { 
-            it.isFile && it.extension == "xml" 
+            it.isFile && it.extension == "xml"
         } ?: emptyList()
 
         if (xmlFiles.isEmpty()) {
@@ -134,19 +180,38 @@ class ExportLiveTemplateAction : DumbAwareAction() {
         }
 
         // 选择保存位置
-        val descriptor = FileSaverDescriptor(
-            "导出实时模板",
-            "选择保存位置",
-            "zip"
-        )
-        val fileSaver = FileChooserFactory.getInstance()
-            .createSaveFileDialog(descriptor, project)
-        val virtualFileWrapper = fileSaver.save("templates.zip")
+        val descriptor = FileChooserDescriptor(false, true, false, false, false, false)
+            .withTitle("选择保存目录")
+            .withDescription("请选择一个目录来保存导出的实时模板压缩包 (templates.zip)")
+        
+        val baseDir = project.basePath?.let { path ->
+            com.intellij.openapi.vfs.LocalFileSystem.getInstance().findFileByPath(path)
+        }
+        
+        val selectedFolder = FileChooser.chooseFile(descriptor, project, baseDir)
             ?: return
 
+        // 弹出文件名输入对话框
+        val saveDialog = SaveFileDialog(project, "templates")
+        if (!saveDialog.showAndGet()) return
+
+        val fullFileName = saveDialog.getFullFileName()
+        val targetFile = File(selectedFolder.path, fullFileName)
+        
         try {
+            if (targetFile.exists()) {
+                val overwrite = Messages.showYesNoDialog(
+                    project,
+                    "文件 $fullFileName 已存在，是否覆盖？",
+                    "文件已存在",
+                    Messages.getQuestionIcon()
+                )
+                if (overwrite != Messages.YES) return
+                targetFile.delete()
+            }
+
             // 创建 zip 文件
-            val zipFile = virtualFileWrapper.file
+            val zipFile = targetFile
             ZipOutputStream(FileOutputStream(zipFile)).use { zipOut ->
                 selectedFiles.forEach { file ->
                     // 添加文件到 zip
@@ -162,7 +227,7 @@ class ExportLiveTemplateAction : DumbAwareAction() {
             // 显示成功消息，并提供分享按钮
             val choice = Messages.showDialog(
                 project,
-                "实时模板导出成功",
+                "实时模板导出成功到 $fullFileName",
                 "导出实时模板",
                 arrayOf("分享到云端", "关闭"),
                 0,

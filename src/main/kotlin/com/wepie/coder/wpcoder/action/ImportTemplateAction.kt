@@ -35,12 +35,6 @@ class ImportTemplateAction : DumbAwareAction() {
                             val tempDir = FileUtil.createTempDirectory("templates", "import")
                             try {
                                 ZipFile(sourceFile).use { zip ->
-                                    // 调试：列出所有文件
-                                    println("Files in zip:")
-                                    zip.entries().asSequence().forEach { entry ->
-                                        println("  ${entry.name}")
-                                    }
-                                    
                                     // 第一步：解压所有文件
                                     zip.entries().asSequence().forEach { entry ->
                                         if (!entry.isDirectory) {
@@ -52,12 +46,6 @@ class ImportTemplateAction : DumbAwareAction() {
                                                 }
                                             }
                                         }
-                                    }
-                                    
-                                    // 调试：列出临时目录中的所有文件
-                                    println("\nFiles in temp directory:")
-                                    tempDir.walk().forEach { file ->
-                                        println("  ${file.relativeTo(tempDir)}")
                                     }
                                     
                                     // 第二步：处理所有属性文件
@@ -75,7 +63,6 @@ class ImportTemplateAction : DumbAwareAction() {
                                             
                                             if (name != null && extension != null) {
                                                 val contentFile = File(tempDir, "$name.content")
-                                                println("Looking for content file: ${contentFile.absolutePath}")
                                                 
                                                 if (contentFile.exists()) {
                                                     val content = contentFile.readText()
@@ -99,11 +86,6 @@ class ImportTemplateAction : DumbAwareAction() {
                                                         // 强制保存模板配置
                                                         fileTemplateManager.saveAllTemplates()
                                                     }
-
-                                                    // 调试输出
-                                                    println("Imported template: name=$name, fileName=${template.fileName}, extension=$extension")
-                                                } else {
-                                                    println("  WARNING: Content file not found for template: $name")
                                                 }
                                             }
                                         }

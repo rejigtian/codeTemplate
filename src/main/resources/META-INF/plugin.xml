@@ -3,8 +3,14 @@
     <id>com.wepie.coder.wpcoder</id>
     <name>WP Template Coder: MCP Support</name>
     <vendor email="tianruijie@wepie.com" url="https://www.wepie.com">Wepie</vendor>
-    <version>1.1.7</version>
+    <version>1.1.8</version>
     <change-notes><![CDATA[
+        <h2>1.1.8</h2>
+        <ul>
+            <li>优化插件图标：将 pluginIcon.svg 周边黑色边框改为透明，提升商店显示效果</li>
+            <li>修复兼容性问题：解决低版本 IDE 下文件导出功能无反应的问题（Java 8 兼容性修复）</li>
+            <li>优化导出流程：统一实时模板与文件模板的导出保存逻辑</li>
+        </ul>
         <h2>1.1.7</h2>
         <ul>
             <li>优化模板列表加载逻辑：在已有数据时进行静默刷新，消除界面闪烁感</li>
