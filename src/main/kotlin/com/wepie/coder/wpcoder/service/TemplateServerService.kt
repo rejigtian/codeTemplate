@@ -1,5 +1,6 @@
 package com.wepie.coder.wpcoder.service
 
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
@@ -14,6 +15,7 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import com.google.gson.JsonParser
 import com.google.gson.JsonObject
 import java.io.File
+import java.util.concurrent.CompletableFuture
 
 @Service(Service.Level.APP)
 @State(
@@ -80,26 +82,97 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
         checkAndShowDefaultWarning()
         
         val url = "${myState.serverUrl}/api/templates/list" + (type?.let { "?type=$it" } ?: "")
-        return HttpRequests.request(url)
-            .tuner {
-                it.setRequestProperty("X-API-Key", myState.apiKey)
+        
+        // 确保网络请求在后台线程执行
+        if (ApplicationManager.getApplication().isDispatchThread || 
+            ApplicationManager.getApplication().isReadAccessAllowed) {
+            // 如果在 EDT 或 read action 中，使用 CompletableFuture 在后台线程执行
+            val future = CompletableFuture.supplyAsync<List<TemplateInfo>> {
+                HttpRequests.request(url)
+                    .tuner {
+                        it.setRequestProperty("X-API-Key", myState.apiKey)
+                    }
+                    .accept("application/json")
+                    .connect { request ->
+                        val responseText = request.readString()
+                        val jsonArray = JsonParser.parseString(responseText).asJsonArray
+                        val result = mutableListOf<TemplateInfo>()
+                        for (element in jsonArray) {
+                            val obj = element.asJsonObject
+                            result.add(TemplateInfo(
+                                fileName = obj.get("fileName").asString,
+                                displayName = obj.get("displayName").asString,
+                                type = obj.get("type").asString,
+                                createTime = obj.get("createTime")?.asLong ?: 0
+                            ))
+                        }
+                        result
+                    }
             }
-            .accept("application/json")
-            .connect { request ->
-                val responseText = request.readString()
-                val jsonArray = JsonParser.parseString(responseText).asJsonArray
-                val result = mutableListOf<TemplateInfo>()
-                for (element in jsonArray) {
-                    val obj = element.asJsonObject
-                    result.add(TemplateInfo(
-                        fileName = obj.get("fileName").asString,
-                        displayName = obj.get("displayName").asString,
-                        type = obj.get("type").asString,
-                        createTime = obj.get("createTime")?.asLong ?: 0
-                    ))
+            return future.get() // 阻塞等待结果（不推荐，但保持接口兼容性）
+        } else {
+            // 已经在后台线程，直接执行
+            return HttpRequests.request(url)
+                .tuner {
+                    it.setRequestProperty("X-API-Key", myState.apiKey)
                 }
-                result
+                .accept("application/json")
+                .connect { request ->
+                    val responseText = request.readString()
+                    val jsonArray = JsonParser.parseString(responseText).asJsonArray
+                    val result = mutableListOf<TemplateInfo>()
+                    for (element in jsonArray) {
+                        val obj = element.asJsonObject
+                        result.add(TemplateInfo(
+                            fileName = obj.get("fileName").asString,
+                            displayName = obj.get("displayName").asString,
+                            type = obj.get("type").asString,
+                            createTime = obj.get("createTime")?.asLong ?: 0
+                        ))
+                    }
+                    result
+                }
+        }
+    }
+    
+    /**
+     * 异步获取模板列表（推荐使用）
+     */
+    fun getTemplatesAsync(type: String? = null, callback: (List<TemplateInfo>) -> Unit) {
+        checkAndShowDefaultWarning()
+        
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                val url = "${myState.serverUrl}/api/templates/list" + (type?.let { "?type=$it" } ?: "")
+                val templates = HttpRequests.request(url)
+                    .tuner {
+                        it.setRequestProperty("X-API-Key", myState.apiKey)
+                    }
+                    .accept("application/json")
+                    .connect { request ->
+                        val responseText = request.readString()
+                        val jsonArray = JsonParser.parseString(responseText).asJsonArray
+                        val result = mutableListOf<TemplateInfo>()
+                        for (element in jsonArray) {
+                            val obj = element.asJsonObject
+                            result.add(TemplateInfo(
+                                fileName = obj.get("fileName").asString,
+                                displayName = obj.get("displayName").asString,
+                                type = obj.get("type").asString,
+                                createTime = obj.get("createTime")?.asLong ?: 0
+                            ))
+                        }
+                        result
+                    }
+                ApplicationManager.getApplication().invokeLater {
+                    callback(templates)
+                }
+            } catch (e: Exception) {
+                ApplicationManager.getApplication().invokeLater {
+                    callback(emptyList())
+                }
             }
+        }
     }
 
     fun downloadTemplate(type: String, fileName: String): File {
@@ -113,13 +186,29 @@ class TemplateServerService : PersistentStateComponent<TemplateServerService.Sta
         println("下载地址: $url")
         println("保存路径: ${tempFile.absolutePath}")
         
-        HttpRequests.request(url)
-            .tuner {
-                it.setRequestProperty("X-API-Key", myState.apiKey)
+        // 确保网络请求在后台线程执行
+        if (ApplicationManager.getApplication().isDispatchThread || 
+            ApplicationManager.getApplication().isReadAccessAllowed) {
+            val future = CompletableFuture.supplyAsync<File> {
+                HttpRequests.request(url)
+                    .tuner {
+                        it.setRequestProperty("X-API-Key", myState.apiKey)
+                    }
+                    .connect { request ->
+                        java.nio.file.Files.copy(request.inputStream, tempFile.toPath())
+                    }
+                tempFile
             }
-            .connect { request ->
-                java.nio.file.Files.copy(request.inputStream, tempFile.toPath())
-            }
+            return future.get()
+        } else {
+            HttpRequests.request(url)
+                .tuner {
+                    it.setRequestProperty("X-API-Key", myState.apiKey)
+                }
+                .connect { request ->
+                    java.nio.file.Files.copy(request.inputStream, tempFile.toPath())
+                }
+        }
         
         println("下载完成: 文件存在=${tempFile.exists()}, 大小=${tempFile.length()}")
         return tempFile

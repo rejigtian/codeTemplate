@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.wepie.coder"
-version = "1.1.6"
+version = "1.1.7"
 
 repositories {
     mavenCentral()

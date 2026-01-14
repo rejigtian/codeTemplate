@@ -230,22 +230,24 @@ class TemplatePanel(
     }
 
     fun refreshTemplates() {
-        // 确保在 EDT 线程中执行 UI 更新
-        if (!SwingUtilities.isEventDispatchThread()) {
-            SwingUtilities.invokeLater { refreshTemplates() }
-            return
-        }
-
-        try {
-            val templates = templateService.getTemplates(templateType)
-            templateList.setListData(templates.toTypedArray())
-            // 如果不是默认配置，隐藏提示信息
-            if (!(templateService.state.serverUrl == TemplateServerService.DEFAULT_SERVER_URL &&
-                templateService.state.apiKey == TemplateServerService.DEFAULT_API_KEY)) {
-                hideTip()
+        // 显示加载状态
+        showTip("正在加载模板...")
+        
+        // 使用异步方法在后台线程执行网络请求
+        templateService.getTemplatesAsync(templateType) { templates ->
+            // 这个回调已经在 EDT 线程中执行
+            try {
+                templateList.setListData(templates.toTypedArray())
+                // 如果不是默认配置，隐藏提示信息
+                if (!(templateService.state.serverUrl == TemplateServerService.DEFAULT_SERVER_URL &&
+                    templateService.state.apiKey == TemplateServerService.DEFAULT_API_KEY)) {
+                    hideTip()
+                } else if (templates.isEmpty()) {
+                    showTip("暂无模板数据")
+                }
+            } catch (e: Exception) {
+                showTip("加载失败: ${e.message}")
             }
-        } catch (e: Exception) {
-            showTip("加载失败: ${e.message}")
         }
     }
 

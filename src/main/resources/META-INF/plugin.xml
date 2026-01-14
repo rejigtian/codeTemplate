@@ -3,9 +3,17 @@
     <id>com.wepie.coder.wpcoder</id>
     <name>WP Template Coder</name>
     <vendor email="tianruijie@wepie.com" url="https://www.wepie.com">Wepie</vendor>
-    <version>1.1.6</version>
+    <version>1.1.7</version>
     <idea-version since-build="243"/>
     <change-notes><![CDATA[
+        <h2>1.1.7</h2>
+        <ul>
+            <li>Fixed network request issue in EDT thread for IntelliJ Platform 243.* compatibility</li>
+            <li>All network requests now execute in background threads to prevent UI blocking</li>
+            <li>Added asynchronous template loading with proper thread management</li>
+            <li>Improved error handling and user feedback during template loading</li>
+            <li>Enhanced stability on older IntelliJ Platform versions</li>
+        </ul>
         <h2>1.1.6</h2>
         <ul>
             <li>Integrated Local MCP (Model Context Protocol) service for AI assistance</li>
@@ -79,6 +87,14 @@
                     <li>Separate tabs for File Templates and Live Templates</li>
                     <li>Clear visual feedback for all operations</li>
                     <li>Improved error messages and user guidance</li>
+                    <li>Asynchronous template loading for better performance</li>
+                </ul>
+            </li>
+            <li><b>Compatibility</b>
+                <ul>
+                    <li>Full support for IntelliJ Platform 243 and above</li>
+                    <li>Thread-safe network operations</li>
+                    <li>Compatible with all IntelliJ Platform IDEs</li>
                 </ul>
             </li>
         </ul>
