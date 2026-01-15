@@ -48,7 +48,7 @@ intellijPlatform {
     buildSearchableOptions.set(false)
     pluginConfiguration {
         ideaVersion {
-            sinceBuild.set("243")
+            sinceBuild.set("251")
             untilBuild.set(provider { null })
         }
     }
