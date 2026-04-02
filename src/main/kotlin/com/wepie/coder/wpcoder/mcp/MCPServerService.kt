@@ -1,8 +1,11 @@
 package com.wepie.coder.wpcoder.mcp
 
 import com.google.gson.Gson
+import com.google.gson.JsonElement
+import com.google.gson.JsonArray
+import com.google.gson.JsonNull
 import com.google.gson.JsonObject
-import com.intellij.codeInsight.template.impl.TemplateSettings
+import com.google.gson.JsonSyntaxException
 import com.intellij.ide.fileTemplates.FileTemplateManager
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.PathManager
@@ -10,17 +13,41 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.ProjectManager
 import com.wepie.coder.wpcoder.service.TemplateServerService
-import java.io.BufferedReader
+import java.io.BufferedInputStream
 import java.io.File
-import java.io.InputStreamReader
-import java.io.PrintWriter
+import java.io.InputStream
+import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.SocketException
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import javax.xml.parsers.DocumentBuilderFactory
+import javax.xml.transform.OutputKeys
+import javax.xml.transform.TransformerFactory
+import javax.xml.transform.dom.DOMSource
+import javax.xml.transform.stream.StreamResult
+import org.w3c.dom.Element
+import java.io.StringWriter
 
 @Service(Service.Level.APP)
 class MCPServerService {
+    private data class RequestFrame(
+        val text: String,
+        val useContentLength: Boolean
+    )
+
+    private data class LiveTemplateInfo(
+        val id: String,
+        val groupName: String,
+        val templateName: String,
+        val description: String,
+        val file: File
+    )
+
     private val executor = Executors.newCachedThreadPool()
+    private val clientSockets = ConcurrentHashMap.newKeySet<Socket>()
     private var serverSocket: ServerSocket? = null
     private var running = false
     private val gson = Gson()
@@ -81,6 +108,13 @@ class MCPServerService {
     @Synchronized
     private fun stopServer() {
         running = false
+        clientSockets.forEach {
+            try {
+                it.close()
+            } catch (_: Exception) {
+            }
+        }
+        clientSockets.clear()
         serverSocket?.close()
         serverSocket = null
         println("MCP Server stopped")
@@ -88,33 +122,174 @@ class MCPServerService {
 
     private fun handleClient(socket: Socket) {
         executor.execute {
+            clientSockets.add(socket)
             socket.use { s ->
-                val reader = BufferedReader(InputStreamReader(s.getInputStream()))
-                val writer = PrintWriter(s.getOutputStream(), true)
-                
-                while (running) {
-                    val line = reader.readLine() ?: break
-                    try {
-                        val request = gson.fromJson(line, JsonObject::class.java)
-                        val response = processRequest(request)
-                        // 通知请求不返回 ID，也不需要响应
-                        if (request.has("id")) {
-                            writer.println(gson.toJson(response))
-                        }
-                    } catch (e: Exception) {
-                        val errorResponse = JsonObject().apply {
-                            addProperty("jsonrpc", "2.0")
-                            add("id", null)
-                            val error = JsonObject().apply {
-                                addProperty("code", -32603)
-                                addProperty("message", e.message)
+                try {
+                    val input = BufferedInputStream(s.getInputStream())
+                    
+                    while (running && !s.isClosed) {
+                        var useContentLength = false
+                        var requestId: JsonElement = JsonNull.INSTANCE
+                        try {
+                            val frame = readRequestText(input) ?: break
+                            useContentLength = frame.useContentLength
+
+                            val payload = frame.text.trim()
+                            if (payload.isEmpty()) continue
+
+                            val request = try {
+                                gson.fromJson(payload, JsonObject::class.java)
+                            } catch (e: JsonSyntaxException) {
+                                throw IllegalArgumentException("Invalid JSON payload", e)
                             }
-                            add("error", error)
+                            requestId = request.get("id") ?: JsonNull.INSTANCE
+                            val response = processRequest(request)
+                            // 通知请求不返回 ID，也不需要响应
+                            if (request.has("id")) {
+                                writeResponse(
+                                    output = s.getOutputStream(),
+                                    useContentLength = useContentLength,
+                                    responseText = gson.toJson(response)
+                                )
+                            }
+                        } catch (e: SocketException) {
+                            println("[DEBUG_LOG] MCP client disconnected: ${e.message}")
+                            break
+                        } catch (e: Exception) {
+                            println("[DEBUG_LOG] Error handling MCP request: ${e.message}")
+                            val errorResponse = JsonObject().apply {
+                                addProperty("jsonrpc", "2.0")
+                                add("id", requestId)
+                                val error = JsonObject().apply {
+                                    addProperty("code", errorCodeFor(e))
+                                    addProperty("message", e.message)
+                                }
+                                add("error", error)
+                            }
+                            try {
+                                writeResponse(
+                                    output = s.getOutputStream(),
+                                    useContentLength = useContentLength,
+                                    responseText = gson.toJson(errorResponse)
+                                )
+                            } catch (writeError: Exception) {
+                                println("[DEBUG_LOG] Failed writing MCP error response: ${writeError.message}")
+                                break
+                            }
                         }
-                        writer.println(gson.toJson(errorResponse))
                     }
+                } finally {
+                    clientSockets.remove(s)
                 }
             }
+        }
+    }
+
+    private fun readRequestText(input: BufferedInputStream): RequestFrame? {
+        val firstLineBytes = readAsciiLine(input) ?: return null
+        val firstLine = String(firstLineBytes, StandardCharsets.UTF_8)
+
+        return if (looksLikeHeaderLine(firstLine)) {
+            val headers = linkedMapOf<String, String>()
+            parseHeaderLine(firstLine)?.let { (key, value) ->
+                headers[key] = value
+            }
+
+            while (true) {
+                val headerLineBytes = readAsciiLine(input) ?: return null
+                val headerLine = String(headerLineBytes, StandardCharsets.UTF_8)
+                if (headerLine.isBlank()) break
+
+                parseHeaderLine(headerLine)?.let { (key, value) ->
+                    headers[key] = value
+                }
+            }
+
+            val contentLength = headers["content-length"]?.toIntOrNull()
+                ?: throw IllegalArgumentException("Missing Content-Length header")
+            RequestFrame(
+                text = readUtf8Body(input, contentLength),
+                useContentLength = true
+            )
+        } else {
+            RequestFrame(text = firstLine, useContentLength = false)
+        }
+    }
+
+    private fun writeResponse(
+        output: OutputStream,
+        useContentLength: Boolean,
+        responseText: String
+    ) {
+        if (useContentLength) {
+            writeContentLengthResponse(output, responseText)
+        } else {
+            output.write((responseText + "\n").toByteArray(StandardCharsets.UTF_8))
+            output.flush()
+        }
+    }
+
+    private fun writeContentLengthResponse(output: OutputStream, responseText: String) {
+        val payload = responseText.toByteArray(StandardCharsets.UTF_8)
+        val header = "Content-Length: ${payload.size}\r\n\r\n".toByteArray(StandardCharsets.UTF_8)
+        output.write(header)
+        output.write(payload)
+        output.flush()
+    }
+
+    private fun readUtf8Body(input: InputStream, contentLength: Int): String {
+        val body = ByteArray(contentLength)
+        var offset = 0
+        while (offset < contentLength) {
+            val read = input.read(body, offset, contentLength - offset)
+            if (read == -1) {
+                throw IllegalStateException("Unexpected EOF while reading request body")
+            }
+            offset += read
+        }
+        return String(body, StandardCharsets.UTF_8)
+    }
+
+    private fun readAsciiLine(input: InputStream): ByteArray? {
+        val buffer = ArrayList<Byte>()
+        while (true) {
+            val next = input.read()
+            if (next == -1) {
+                return if (buffer.isEmpty()) null else buffer.toByteArray()
+            }
+            if (next == '\n'.code) {
+                if (buffer.isNotEmpty() && buffer.last() == '\r'.code.toByte()) {
+                    buffer.removeAt(buffer.lastIndex)
+                }
+                return buffer.toByteArray()
+            }
+            buffer.add(next.toByte())
+        }
+    }
+
+    private fun looksLikeHeaderLine(line: String): Boolean {
+        val trimmed = line.trimStart()
+        return trimmed.contains(':') && !trimmed.startsWith("{") && !trimmed.startsWith("[")
+    }
+
+    private fun parseHeaderLine(line: String): Pair<String, String>? {
+        val colonIndex = line.indexOf(':')
+        if (colonIndex <= 0) return null
+        val key = line.substring(0, colonIndex).trim().lowercase()
+        val value = line.substring(colonIndex + 1).trim()
+        return key to value
+    }
+
+    private fun errorCodeFor(error: Exception): Int {
+        val message = error.message.orEmpty()
+        return when {
+            message.contains("Invalid JSON payload") -> -32700
+            message.contains("Missing Content-Length") -> -32600
+            message.contains("Unexpected EOF while reading request body") -> -32600
+            message.contains("Missing params") -> -32602
+            message.contains("Missing tool name") -> -32602
+            message.contains("Tool not found") -> -32601
+            else -> -32603
         }
     }
 
@@ -207,8 +382,10 @@ class MCPServerService {
             }
             "tools/call", "callTool" -> {
                 val params = request.getAsJsonObject("params")
+                    ?: throw IllegalArgumentException("Missing params for tools/call")
                 val name = params.get("name")?.asString
-                val toolParams = params.getAsJsonObject("arguments")
+                    ?: throw IllegalArgumentException("Missing tool name for tools/call")
+                val toolParams = params.getAsJsonObject("arguments") ?: JsonObject()
                 
                 val result = when (name) {
                     "list_file_templates" -> handleListFileTemplates()
@@ -244,7 +421,7 @@ class MCPServerService {
         }
         
         return JsonObject().apply {
-            val content = com.google.gson.JsonArray()
+            val content = JsonArray()
             content.add(JsonObject().apply {
                 addProperty("type", "text")
                 addProperty("text", if (templatesInfo.isEmpty()) "No user-defined file templates found." else "Available File Templates:\n" + templatesInfo.distinct().joinToString("\n"))
@@ -264,7 +441,7 @@ class MCPServerService {
         }
         
         return JsonObject().apply {
-            val content = com.google.gson.JsonArray()
+            val content = JsonArray()
             content.add(JsonObject().apply {
                 addProperty("type", "text")
                 if (templateText != null) {
@@ -278,74 +455,143 @@ class MCPServerService {
     }
 
     fun handleListLiveTemplates(): JsonObject {
-        val templatesInfo = mutableListOf<String>()
-        ApplicationManager.getApplication().runReadAction {
-            val settings = TemplateSettings.getInstance()
-            // 获取所有模板并过滤掉默认的
-            settings.templates.forEach { template ->
-                // TemplateImpl 可能没有直接的 isDefault，但通常用户自定义的模板会有不同的存储方式
-                // 或者我们可以通过 groupName 来判断，或者查看 TemplateSettings 是如何加载的
-                // 另一种方式是维持之前的逻辑，从 xml 文件名获取，但获取更多信息
-                val contexts = mutableListOf<String>()
-                // 暂时不通过 settings.templates 过滤，因为不知道哪个是自定义的
-            }
-
-            // 维持从文件读取自定义模板列表的逻辑，但增加详细信息
-            val templatesDir = File(PathManager.getConfigPath(), "templates")
-            if (templatesDir.exists() && templatesDir.isDirectory) {
-                templatesDir.listFiles()?.filter { it.isFile && it.extension == "xml" }?.forEach { file ->
-                    val groupName = file.nameWithoutExtension
-                    // 从 TemplateSettings 中找匹配这个组的模板
-                    val templatesInGroup = TemplateSettings.getInstance().templates.filter { it.groupName == groupName }
-                    templatesInGroup.forEach { template ->
-                        // 获取上下文信息
-                        val contextNames = mutableListOf<String>()
-                        try {
-                            val context = template.templateContext
-                            // 这是一个简化的获取方式，可能需要根据具体平台版本调整
-                            // 在某些版本中可以使用 context.getOwnContextTypes()
-                        } catch (e: Exception) {
-                            // 忽略获取上下文时的错误
-                        }
-                        
-                        val info = "Group: ${template.groupName}, Abbreviation: ${template.key}, Description: ${template.description ?: "N/A"}"
-                        templatesInfo.add(info)
-                    }
-                }
-            }
-        }
+        val templatesInfo = loadLiveTemplateInfos()
         
         return JsonObject().apply {
-            val content = com.google.gson.JsonArray()
+            val content = JsonArray()
             content.add(JsonObject().apply {
                 addProperty("type", "text")
-                addProperty("text", if (templatesInfo.isEmpty()) "No user-defined live templates found." else "Available Live Templates:\n" + templatesInfo.joinToString("\n"))
+                addProperty(
+                    "text",
+                    if (templatesInfo.isEmpty()) {
+                        "No user-defined live templates found."
+                    } else {
+                        "Available Live Templates:\n" + templatesInfo.joinToString("\n") {
+                            "Id: ${it.id}, Group: ${it.groupName}, Abbreviation: ${it.templateName}, Description: ${it.description}"
+                        }
+                    }
+                )
             })
             add("content", content)
         }
     }
 
     fun handleGetLiveTemplate(name: String): JsonObject {
-        var templateContent: String? = null
-        ApplicationManager.getApplication().runReadAction {
-            val templatesDir = java.io.File(com.intellij.openapi.application.PathManager.getConfigPath(), "templates")
-            val templateFile = java.io.File(templatesDir, "$name.xml")
-            if (templateFile.exists() && templateFile.isFile) {
-                templateContent = templateFile.readText()
+        val templates = loadLiveTemplateInfos()
+        val matchedTemplates = when {
+            name.contains(':') -> templates.filter { it.id == name }
+            else -> templates.filter { it.templateName == name || it.groupName == name }
+        }
+
+        val responseText = when {
+            matchedTemplates.isEmpty() -> "Live Template $name not found"
+            matchedTemplates.size > 1 && !name.contains(':') -> {
+                "Multiple live templates match '$name'. Use one of these ids:\n" +
+                    matchedTemplates.joinToString("\n") { it.id }
+            }
+            else -> {
+                val selected = matchedTemplates.first()
+                val templateXml = extractTemplateXml(selected.file, selected.groupName, selected.templateName)
+                    ?: return JsonObject().apply {
+                        val content = JsonArray()
+                        content.add(JsonObject().apply {
+                            addProperty("type", "text")
+                            addProperty("text", "Live Template ${selected.id} not found in ${selected.file.name}")
+                        })
+                        add("content", content)
+                    }
+
+                "Live Template Content for ${selected.id}:\n$templateXml"
             }
         }
         
         return JsonObject().apply {
-            val content = com.google.gson.JsonArray()
+            val content = JsonArray()
             content.add(JsonObject().apply {
                 addProperty("type", "text")
-                if (templateContent != null) {
-                    addProperty("text", "Live Template Content for $name:\n$templateContent")
-                } else {
-                    addProperty("text", "Live Template $name not found")
-                }
+                addProperty("text", responseText)
             })
             add("content", content)
         }
+    }
+
+    private fun loadLiveTemplateInfos(): List<LiveTemplateInfo> {
+        val templatesDir = File(PathManager.getConfigPath(), "templates")
+        if (!templatesDir.exists() || !templatesDir.isDirectory) return emptyList()
+
+        return templatesDir.listFiles()
+            ?.asSequence()
+            ?.filter { it.isFile && it.extension == "xml" }
+            ?.flatMap { file -> parseLiveTemplates(file).asSequence() }
+            ?.sortedWith(compareBy({ it.groupName }, { it.templateName }))
+            ?.toList()
+            ?: emptyList()
+    }
+
+    private fun parseLiveTemplates(file: File): List<LiveTemplateInfo> {
+        return try {
+            val document = newXmlDocumentBuilder().parse(file)
+            val root = document.documentElement ?: return emptyList()
+            val groupName = root.getAttribute("group").ifBlank { file.nameWithoutExtension }
+            val templates = root.getElementsByTagName("template")
+            buildList {
+                for (i in 0 until templates.length) {
+                    val element = templates.item(i) as? Element ?: continue
+                    val templateName = element.getAttribute("name").trim()
+                    if (templateName.isEmpty()) continue
+                    add(
+                        LiveTemplateInfo(
+                            id = "$groupName:$templateName",
+                            groupName = groupName,
+                            templateName = templateName,
+                            description = element.getAttribute("description").ifBlank { "N/A" },
+                            file = file
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            println("[DEBUG_LOG] Failed to parse live template file ${file.name}: ${e.message}")
+            emptyList()
+        }
+    }
+
+    private fun extractTemplateXml(file: File, groupName: String, templateName: String): String? {
+        return try {
+            val document = newXmlDocumentBuilder().parse(file)
+            val templates = document.documentElement?.getElementsByTagName("template") ?: return null
+            for (i in 0 until templates.length) {
+                val element = templates.item(i) as? Element ?: continue
+                if (element.getAttribute("name") == templateName) {
+                    val templateXml = nodeToXml(element)
+                    return "<templateSet group=\"$groupName\">\n$templateXml\n</templateSet>"
+                }
+            }
+            null
+        } catch (e: Exception) {
+            println("[DEBUG_LOG] Failed to extract live template $groupName:$templateName from ${file.name}: ${e.message}")
+            null
+        }
+    }
+
+    private fun newXmlDocumentBuilder() =
+        DocumentBuilderFactory.newInstance().apply {
+            isNamespaceAware = false
+            isIgnoringComments = true
+            isCoalescing = true
+            setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+            setFeature("http://xml.org/sax/features/external-general-entities", false)
+            setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+            setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+        }.newDocumentBuilder()
+
+    private fun nodeToXml(element: Element): String {
+        val writer = StringWriter()
+        val transformer = TransformerFactory.newInstance().newTransformer().apply {
+            setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes")
+            setOutputProperty(OutputKeys.INDENT, "yes")
+        }
+        transformer.transform(DOMSource(element), StreamResult(writer))
+        return writer.toString().trim()
     }
 }
