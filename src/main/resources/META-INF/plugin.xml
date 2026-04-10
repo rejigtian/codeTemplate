@@ -3,8 +3,19 @@
     <id>com.wepie.coder.wpcoder</id>
     <name>WP Template Coder: MCP Support</name>
     <vendor email="tianruijie@wepie.com" url="https://www.wepie.com">Wepie</vendor>
-    <version>1.1.7</version>
+    <version>1.1.9</version>
     <change-notes><![CDATA[
+        <h2>1.1.9</h2>
+        <ul>
+            <li>修复 Live Template 查询功能：list_live_templates 与 get_live_template 工具现在能正确读取并返回 Live Templates</li>
+            <li>支持通过 ID、缩写名（abbreviation）或分组名精确定位 Live Template，重复名称时提示使用完整 ID</li>
+            <li>进一步提升 MCP Server 传输稳定性，优化消息解析与错误码处理</li>
+        </ul>
+        <h2>1.1.8</h2>
+        <ul>
+            <li>修复 Local MCP server 传输兼容性，支持 Content-Length framing 与按行 JSON 两种消息格式</li>
+            <li>兼容更多 MCP 客户端，降低与不同 IDE / AI 工具之间的连接失败问题</li>
+        </ul>
         <h2>1.1.7</h2>
         <ul>
             <li>优化模板列表加载逻辑：在已有数据时进行静默刷新，消除界面闪烁感</li>
